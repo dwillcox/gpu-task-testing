@@ -37,7 +37,7 @@ void square_host(void* xv) {
   state->x = (state->x) * (state->x);
 }
 
-__device__ void task_kernel(thrust::device_vector<Task*>* task_container) {
+__global__ void task_kernel(thrust::device_vector<Task*>* task_container) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   int size = task_container->size();
   if (tid < size) {
@@ -46,7 +46,7 @@ __device__ void task_kernel(thrust::device_vector<Task*>* task_container) {
   }
 }
 
-__device__ void pool_kernel(Pool* task_pool, Graph* graph_ptr) {
+__global__ void pool_kernel(Pool* task_pool, Graph* graph_ptr) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   if (tid == 0) {
     thrust::device_vector<Task*> task_container;
@@ -100,11 +100,6 @@ void device_execute_graph(void* vgraph) {
       cudaStreamSynchronize(*(p->stream_ptr));
     }
 
-    // free pool memory
-    for (auto p : graph->task_pools) {
-      delete p;
-    }
-
     // destroy streams
     for (int i = 0; i < npools; i++) {
       cudaStreamDestroy(graph->pool_streams[i]);
@@ -153,8 +148,6 @@ __host__ __device__ void Graph::advance(thrust::device_vector<Task*>* task_colle
       state->status = 2;
       Pool* p= task_pools[2];      
       p->checkin(task);
-    } else if (state->status == 2) {
-      delete task;
     }
   }
 }

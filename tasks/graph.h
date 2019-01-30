@@ -15,6 +15,7 @@ class Graph : public UnifiedMemoryClass {
 public:
   thrust::device_vector<Pool*> task_pools;
   thrust::device_vector<GenericFunction*> generic_function_table;
+  thrust::host_vector<Task*> task_list;
   cudaStream_t* pool_streams;
 
   // doesn't need a lock because only the device will modify
@@ -34,6 +35,9 @@ public:
     for (auto gf : generic_function_table) {
       delete gf;
     }
+    for (Task* t : task_list) {
+      delete t;
+    }
   }
   
   void initialize_function_tables();
@@ -51,6 +55,7 @@ public:
   void queue(void* state) {
     GenericFunction* gf = generic_function_table[0];
     Task* t = new Task(gf, state);
+    task_list.push_back(t);
     Pool* p = task_pools[0];
     p->checkin(t);
   }
