@@ -4,47 +4,46 @@
 
 class State {
 public:
-  double x;
-  int status;
-  __host__ __device__ State() : x(0.0), status(0) {}
+  DeviceVector<double> x;
+  int size;
+  double xsum;
+  __host__ __device__ State() {}
 };
 
-__global__ void double_tens(int size, double* xsum) {
+__global__ void double_tens(State* state) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  *xsum = 0.0;
   if (tid == 0) {
-    DeviceVector<State> svec;
-    svec.resize(size);
-    for (int i = 0; i < size; i++) {
-      svec.push_back(State());
+    state->xsum = 0.0;
+    state->x.resize(state->size);
+    for (int i = 0; i < state->size; i++) {
+      state->x.push_back(10.0);
     }
-    for (int i = 0; i < svec.size(); i++) {
-      svec[i].x = 10.0;
-    }
-    for (auto it = svec.begin(); it != svec.end(); ++it) {
-      (*it).x *= 2;
+    for (auto it = state->x.begin(); it != state->x.end(); ++it) {
+      (*it) *= 2;
     }    
-    for (auto it = svec.begin(); it != svec.end(); ++it) {
-      *xsum += (*it).x;
+    for (auto it = state->x.begin(); it != state->x.end(); ++it) {
+      state->xsum += (*it);
     }
   }
 }
 
 int main(int argc, char* argv[]) {
 
-  double* xsum;
+  State* state;
   int size = 100;
 
-  cudaError_t cuda_status = cudaMallocManaged(&xsum, sizeof(double));
+  cudaError_t cuda_status = cudaMallocManaged(&state, sizeof(State));
   assert(cuda_status == cudaSuccess);
 
-  double_tens<<<1,1>>>(size, xsum);
+  state->size = size;
+
+  double_tens<<<1,1>>>(state);
   cuda_status = cudaDeviceSynchronize();
   assert(cuda_status == cudaSuccess);
 
-  std::cout << "sum of 2*10 100 times is: " << *xsum << std::endl;
+  std::cout << "sum of 2*10 100 times is: " << state->xsum << std::endl;
 
-  if (*xsum == 2000.0) std::cout << "SUCCESS!" << std::endl;
+  if (state->xsum == 2000.0) std::cout << "SUCCESS!" << std::endl;
   else std::cout << "ERROR!" << std::endl;
   
   return 0;
