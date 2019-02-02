@@ -1,5 +1,17 @@
 #ifndef DEVICE_VECTOR_H
 #define DEVICE_VECTOR_H
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include <vector>
+
+template<class T> __global__
+void DeviceVector_push_back(void*, T);
+
+template<class T> __global__
+void DeviceVector_resize(void*, size_t);
+
+template<class T> __global__
+void DeviceVector_size(void*, size_t*);
 
 template<class T> class DeviceVector {
   T* contents;
@@ -16,22 +28,75 @@ template<class T> class DeviceVector {
     end_filled_ptr = contents + filled_size;
   }
 public:
-  __device__ DeviceVector() : allocated_size(16) {
+  __host__ __device__ DeviceVector() : allocated_size(16) {
+    #ifdef __CUDA_ARCH__
     contents = new T[allocated_size];
+    #else
+    std::cout << "constructing DeviceVector object on the host" << std::endl;
+    cudaError_t cuda_status = cudaSuccess;
+    cuda_status = cudaMalloc(&contents, allocated_size*sizeof(T));
+    assert(cuda_status == cudaSuccess);
+    #endif
+    end_filled_ptr = contents;    
+  }
+  
+  __host__ __device__ DeviceVector(size_t create_size) : allocated_size(create_size) {
+    #ifdef __CUDA_ARCH__
+    contents = new T[allocated_size];
+    #else
+    std::cout << "constructing DeviceVector object on the host" << std::endl;    
+    cudaError_t cuda_status = cudaSuccess;
+    cuda_status = cudaMalloc(&contents, allocated_size*sizeof(T));
+    assert(cuda_status == cudaSuccess);
+    #endif
     end_filled_ptr = contents;
   }
   
-  __device__ DeviceVector(size_t create_size) : allocated_size(create_size) {
-    contents = new T[allocated_size];
-    end_filled_ptr = contents;
-  }
-  
-  __device__ ~DeviceVector() {
+  __host__ __device__ ~DeviceVector() {
+    #ifdef __CUDA_ARCH__
     delete[] contents;
+    #else
+    cudaError_t cuda_status = cudaSuccess;
+    cuda_status = cudaFree(contents);
+    assert(cuda_status == cudaSuccess);
+    #endif
   }
 
   __device__ T& operator[] (unsigned int i) {
     return *(contents + i);
+  }
+
+  void copy_host_to_device(std::vector<T>* host_vector) {
+    T* host_data = host_vector->data();
+    size_t hsize = host_vector->size();
+    DeviceVector_resize<T><<<1,1>>>(this, hsize);
+    cudaError_t cuda_status = cudaDeviceSynchronize();
+    assert(cuda_status == cudaSuccess);
+    cuda_status = cudaMemcpy(contents, host_data, hsize*sizeof(T), cudaMemcpyHostToDevice);
+    std::cout << "tried to copy T to device: " << cudaGetErrorString(cuda_status) << std::endl;
+    assert(cuda_status == cudaSuccess);
+  }
+
+  void copy_device_to_host(std::vector<T>* host_vector) {
+    cudaError_t cuda_status;
+    
+    T* host_data = host_vector->data();
+    size_t* dsize_p;
+
+    cuda_status = cudaMallocManaged(&dsize_p, sizeof(size_t));
+    assert(cuda_status == cudaSuccess);
+    
+    DeviceVector_size<T><<<1,1>>>(this, dsize_p);
+    cuda_status = cudaDeviceSynchronize();
+    assert(cuda_status == cudaSuccess);
+
+    host_vector->resize(*dsize_p);
+    
+    cuda_status = cudaMemcpy(host_data, contents, (*dsize_p)*sizeof(T), cudaMemcpyDeviceToHost);
+    assert(cuda_status == cudaSuccess);
+
+    cuda_status = cudaFree(dsize_p);
+    assert(cuda_status == cudaSuccess);
   }
 
   __device__ T* begin() {
@@ -63,4 +128,23 @@ public:
     end_filled_ptr = contents + copy_size;
   }
 };
+
+template<class T> __global__
+void DeviceVector_resize(void* vdvec, size_t new_size) {
+  DeviceVector<T>* dvec = static_cast<DeviceVector<T>*>(vdvec);
+  dvec->resize(new_size);
+}
+
+template<class T> __global__
+void DeviceVector_size(void* vdvec, size_t* vsize) {
+  DeviceVector<T>* dvec = static_cast<DeviceVector<T>*>(vdvec);  
+  *vsize = dvec->size();
+}
+
+template<class T> __global__
+void DeviceVector_push_back(void* vdvec, T element) {
+  DeviceVector<T>* dvec = static_cast<DeviceVector<T>*>(vdvec);  
+  dvec->push_back(element);
+}
+
 #endif
