@@ -78,9 +78,11 @@ public:
     return checked_out_tasks.size();
   }
 
-  void checkin(State* state) {
+  void checkin(GenericVector<State*> checkin_states, std::function<bool(State*)> test) {
     lock->lock();
-    tasks.push_back(state);
+    for (State* s : checkin_states) {
+        if (test(s)) tasks.push_back(s);
+    }
     lock->unlock();
   }
 

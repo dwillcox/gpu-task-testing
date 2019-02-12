@@ -32,6 +32,11 @@ public:
       counter++;
       if (counter == 3) status = 3;
       else status = 2;      
+    } else if (status == 2) {
+      square();
+      counter++;
+      if (counter == 3) status = 3;
+      else status = 0;
     }
   }
 

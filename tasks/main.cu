@@ -24,20 +24,24 @@ __global__ void pool_kernel(Pool* pool) {
 
 void Graph::advance(GenericVector<State*>& advance_states) {
   std::cout << "in advance ..." << std::endl;
-  for (State* state : advance_states) {
-    if (state->status == 0) {
-      Pool** p = device_task_pools.get_pointer_to(0);
-      (*p)->checkin(state);
-    }
-    else if (state->status == 1) {
-      Pool** p = device_task_pools.get_pointer_to(1);
-      (*p)->checkin(state);
-    }
-    else if (state->status == 2) {
-      Pool** p = host_task_pools.get_pointer_to(0);
-      (*p)->checkin(state);
-    }
-  }
+
+  std::function<bool(State*)> test;
+  Pool**p;
+  
+  test = [=](State* s) -> bool {return s->status == 0;};
+  p = device_task_pools.get_pointer_to(0);
+  (*p)->checkin(advance_states, test);  
+
+  test = [=](State* s) -> bool {return s->status == 1;};  
+  p = device_task_pools.get_pointer_to(1);
+  (*p)->checkin(advance_states, test);    
+
+
+  test = [=](State* s) -> bool {return s->status == 2;};
+//  p = device_task_pools.get_pointer_to(2);
+  p = host_task_pools.get_pointer_to(0);    
+  (*p)->checkin(advance_states, test);    
+  
   std::cout << "leaving advance ..." << std::endl;  
 }
 
@@ -45,7 +49,7 @@ void Graph::advance(GenericVector<State*>& advance_states) {
 int main(int argc, char* argv[]) {
 
   State* state = NULL;
-  int size = 100;
+  int size = 10000;
 
   cudaError_t cuda_status = cudaSuccess;
   cuda_status = cudaDeviceSynchronize();
@@ -55,16 +59,17 @@ int main(int argc, char* argv[]) {
   assert(cuda_status == cudaSuccess);
 
   // create a Graph with 1 host task pool and 2 device task pools
-  Graph* task_graph = new Graph(1, 2);
+  //Graph* task_graph = new Graph(0, 3);
+  Graph* task_graph = new Graph(1, 2);  
 
   cuda_status = cudaDeviceSynchronize();
   std::cout << "device status after Graph: " << cudaGetErrorString(cuda_status) << std::endl;
 
   for (int i = 0; i < size; i++) {
     state[i].x = 2.0;
-    if (i > 20 && i < 70)
+    if (i > 2000 && i < 7000)
       state[i].status = 1;
-    else if (i <= 20)
+    else if (i <= 2000)
       state[i].status = 0;
     else
       state[i].status = 2;
@@ -80,7 +85,7 @@ int main(int argc, char* argv[]) {
 
   std::cout << "sum of elementwise squared cubed squared x is: " << xsum << std::endl;
 
-  if (xsum == 409600.0) std::cout << "SUCCESS!" << std::endl;
+  if (xsum == 40960000.0) std::cout << "SUCCESS!" << std::endl;
   else std::cout << "ERROR!" << std::endl;
   
   return 0;
