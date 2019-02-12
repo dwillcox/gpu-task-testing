@@ -1,11 +1,11 @@
 #include <iostream>
 #include <cassert>
-#include "manual_vector.h"
+#include "unified_vector.h"
 #include "unified.h"
 
 class State : public UnifiedMemoryClass {
 public:
-  GenericVector<double> x;
+  UnifiedVector<double> x;
   int size;
   int device_fill_size;
   double xsum;

@@ -4,13 +4,13 @@
 #include <cuda_runtime.h>
 #include "unified.h"
 
-template<class T> class GenericVector : public UnifiedMemoryClass {
+template<class T> class UnifiedVector : public UnifiedMemoryClass {
 
 public:
     size_t filled_size;
     size_t allocated_size;
     T* data_ptr;    
-    GenericVector(size_t create_size = 0) {
+    UnifiedVector(size_t create_size = 0) {
         cudaError_t cuda_status = cudaSuccess;
         cudaMallocManaged(&data_ptr, sizeof(T)*create_size);
         cuda_status = cudaDeviceSynchronize();
@@ -18,7 +18,7 @@ public:
         allocated_size = create_size;
     }
   
-    ~GenericVector() {
+    ~UnifiedVector() {
         cudaError_t cuda_status = cudaFree(data_ptr);
         allocated_size = 0;
         assert(cuda_status == cudaSuccess);        
@@ -37,7 +37,7 @@ public:
         return *(data_ptr + i);
     }
 
-    GenericVector<T>& operator=(GenericVector<T>& other) {
+    UnifiedVector<T>& operator=(UnifiedVector<T>& other) {
         if (other.filled_size > this->allocated_size) resize(other.filled_size);
         for (int i = 0; i < other.filled_size; i++) {
             *(data_ptr + i) = other[i];
