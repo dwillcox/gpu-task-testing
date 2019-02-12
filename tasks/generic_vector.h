@@ -44,6 +44,13 @@ public:
     return *tptr;
   }
 
+  GenericVector<T>& operator=(GenericVector<T>& other) {
+    vhost = other.vhost;
+    vdevice = other.vdevice;
+    filled_size = other.filled_size;
+    return *this;
+  }
+
   __host__ T* get_host_pointer_to (unsigned int i) {
     T* hdata = thrust::raw_pointer_cast(vhost.data());
     return &hdata[i];
