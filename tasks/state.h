@@ -5,7 +5,10 @@
 class State : public UnifiedMemoryClass {
 public:
   double x;
+  int counter;
   int status;
+
+  State() : counter(0), status(0), x(0.0) {}
 
   __device__
   void cube() {
@@ -21,10 +24,14 @@ public:
   void advance() {
     if (status == 0) {
       cube();
-      status = 1;
+      counter++;
+      if (counter == 3) status = 3;
+      else status = 1;
     } else if (status == 1) {
       square();
-      status = 2;
+      counter++;
+      if (counter == 3) status = 3;
+      else status = 2;      
     }
   }
 
@@ -32,7 +39,9 @@ public:
     for (State* s : batched_states) {
       if (s->status == 2) {
 	s->square();
-	s->status = 3;
+	s->counter++;
+	if (s->counter == 3) s->status = 3;
+	else s->status = 0;
       }
     }
   }

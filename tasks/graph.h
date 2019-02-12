@@ -24,12 +24,22 @@ public:
   }
 
   ~Graph() {
+    cudaError_t cuda_status = cudaSuccess;
+    for (Pool* p : device_task_pools) {
+      cuda_status = cudaStreamDestroy(p->get_stream());
+      assert(cuda_status == cudaSuccess);      
+    }
+    cuda_status = cudaFree(pool_streams);
+    assert(cuda_status == cudaSuccess);
+    
     for (Pool* p : device_task_pools) {
       delete p;
     }
+    
     for (Pool* p : host_task_pools) {
       delete p;
     }
+    
     for (State* t : task_registry) {
       delete t;
     }
@@ -40,11 +50,13 @@ public:
     
     for (int i = 0; i < num_host_pools; i++) {
       p = new Pool(i);
+      p->set_host_pool();
       host_task_pools.push_back(p);
     }
     
     for (int i = 0; i < num_device_pools; i++) {
       p = new Pool(i);
+      p->set_device_pool();
       device_task_pools.push_back(p);
     }
 
@@ -64,73 +76,97 @@ public:
     task_registry.push_back(state);
   }
 
-  void advance();
+  bool completed() {
+    bool tasks_unfinished = false;
+    for (State* state : task_registry) {
+      if (state->status != 3) {
+	tasks_unfinished = true;
+	break;
+      }
+    }
+    graph_finished = !tasks_unfinished;
+    return graph_finished;
+  }
+  
+  void advance(GenericVector<State*>& advance_states);
 
   void execute_graph() {
     cudaError_t cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
 
-    // Initialize task pools with queued tasks in the registry
-    advance();
+    // Initialize task pools with queued tasks in the registry    
+    std::cout << "initializing task pools..." << std::endl;
+    advance(task_registry);
 
-    // this is very rough, in the future use events to do all this more asynchronously
-    while (!graph_finished) {
-      std::cout << "starting graph execution" << std::endl;
+    std::cout << "starting graph execution..." << std::endl;    
+    
+    while (!completed()) {
 
-      // launch device task kernels
+      // check if previous device pool kernels finished and advance states
       int i = 0;
       for (Pool* pool : device_task_pools) {
-	  int ntasks = pool->tasks.size();
-	  std::cout << "got " << ntasks << " ntasks for device pool " << i << std::endl;
+	if (pool->finished()) {
+	  advance(pool->checked_out_tasks);
+	  pool->reset_checked_out_tasks();
+	}
+	i++;
+      }
 
-	  if (ntasks > 0) {
-	    int numThreads = min(32, ntasks);
-	    int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
+      // launch device task kernels for pools that are ready
+      i = 0;
+      for (Pool* pool : device_task_pools) {      
+	if (pool->ready()) {
+	  int ntasks = pool->size_queued();
+	  std::cout << "got " << ntasks << " ntasks for device pool " << i << std::endl;	  
+	  int numThreads = min(32, ntasks);
+	  int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
 
-	    // copy task pointers to the device
-	    pool->tasks.sync_to_device();
+	  // checkout and copy task pointers to the device
+	  pool->checkout();
+	  pool->checked_out_tasks.sync_to_device();
+	  pool->set_active();
+	  
+	  // launch kernel
+	  pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);
+	  cudaEventRecord(pool->kernel_finished, pool->get_stream());
+	}
+	i++;
+      }
 
-	    // launch kernel
-	    pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);	    
-	  }
-	  i++;
+      // check if previous host pool kernels finished and advance states      
+      i = 0;
+      for (Pool* pool : host_task_pools) {
+	if (pool->finished()) {
+	  advance(pool->checked_out_tasks);
+	  pool->reset_checked_out_tasks();
+	}
+	i++;
       }
 
       // execute host tasks
       i = 0;
       for (Pool* pool : host_task_pools) {
-	int ntasks = pool->tasks.size();
-	std::cout << "got " << ntasks << " ntasks for host pool " << i << std::endl;
-	if (ntasks > 0) {
-	  State::batched_advance(pool->tasks);
+	if (pool->ready()) {
+	  int ntasks = pool->size_queued();
+	  std::cout << "got " << ntasks << " ntasks for host pool " << i << std::endl;
+
+	  // checkout
+	  pool->checkout();
+	  pool->set_active();
+
+	  // run batched tasks
+	  State::batched_advance(pool->checked_out_tasks);
+
+	  pool->set_inactive();
+
+	  i++;
 	}
-	i++;
-      }      
-
-      // sync streams
-      i = 0;
-      for (Pool* pool : device_task_pools) {
-      	cuda_status = cudaStreamSynchronize(pool->get_stream());
-      	std::cout << "synchronizing stream " << i << " with result: " << cudaGetErrorString(cuda_status) << std::endl;
-      	assert(cuda_status == cudaSuccess);
-	std::cout << "clearing task pool ..." << std::endl;
-	pool->reset();	
-	i++;
       }
-
-      std::cout << "calling advance ..." << std::endl;
-      advance();
     }
-
+    
     // sync device
     cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
-
-    // destroy streams
-    for (Pool* pool : device_task_pools) {
-      cuda_status = cudaStreamDestroy(pool->get_stream());
-      assert(cuda_status == cudaSuccess);      
-    }
   }
 };
 #endif

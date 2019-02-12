@@ -14,37 +14,33 @@ void square_host(void* xv) {
 
 __global__ void pool_kernel(Pool* pool) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t size = pool->tasks.size();
+  size_t size = pool->checked_out_tasks.size();
   if (tid < size) {
-    GenericVector<State*>* vptr = &pool->tasks;
+    GenericVector<State*>* vptr = &pool->checked_out_tasks;
     State** s = vptr->get_device_pointer_to(tid);
     (*s)->advance();
   }
 }
 
-void Graph::advance() {
-  bool tasks_unfinished = false;
+void Graph::advance(GenericVector<State*>& advance_states) {
   std::cout << "in advance ..." << std::endl;
-  for (State* state : task_registry) {
+  for (State* state : advance_states) {
     if (state->status == 0) {
       Pool** p = device_task_pools.get_pointer_to(0);
       (*p)->checkin(state);
-      tasks_unfinished = true;
     }
     else if (state->status == 1) {
       Pool** p = device_task_pools.get_pointer_to(1);
       (*p)->checkin(state);
-      tasks_unfinished = true;
     }
     else if (state->status == 2) {
       Pool** p = host_task_pools.get_pointer_to(0);
       (*p)->checkin(state);
-      tasks_unfinished = true;
     }
   }
-  if (!tasks_unfinished) graph_finished=true;
   std::cout << "leaving advance ..." << std::endl;  
 }
+
 
 int main(int argc, char* argv[]) {
 
@@ -66,7 +62,12 @@ int main(int argc, char* argv[]) {
 
   for (int i = 0; i < size; i++) {
     state[i].x = 2.0;
-    state[i].status = 0;
+    if (i > 20 && i < 70)
+      state[i].status = 1;
+    else if (i <= 20)
+      state[i].status = 0;
+    else
+      state[i].status = 2;
     task_graph->queue(&(state[i]));
   }
 
