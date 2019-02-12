@@ -2,12 +2,13 @@
 #define POOL_H
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <iostream>
+#include <functional>
 #include "unified_vector.h"
 #include "state.h"
 #include "lock.h"
 #include "unified.h"
 #include "streamcontainer.h"
-#include "graph.h"
 
 // As a first pass, let's use Pool-wide locking
 class Pool : public UnifiedMemoryClass, public StreamContainer {
@@ -117,4 +118,6 @@ public:
     lock->unlock();
   }  
 };
+
+__global__ void pool_kernel(Pool* pool);
 #endif

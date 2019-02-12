@@ -2,7 +2,6 @@
 #include <cassert>
 #include <functional>
 #include "unified.h"
-#include "lock.h"
 #include "graph.h"
 #include "pool.h"
 #include "state.h"
@@ -12,14 +11,6 @@
 void square_host(void* xv) {
   State* state = static_cast<State*>(xv);
   state->x = (state->x) * (state->x);
-}
-
-__global__ void pool_kernel(Pool* pool) {
-  int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t size = pool->checked_out_tasks.size();
-  if (tid < size) {
-      pool->checked_out_tasks[tid]->advance();
-  }
 }
 
 void Graph::advance(UnifiedVector<State*>& advance_states) {
@@ -36,7 +27,6 @@ void Graph::advance(UnifiedVector<State*>& advance_states) {
   test = [=](State* s) -> bool {return s->status == 1;};  
   p = device_task_pools[1];
   p->checkin(&advance_states, test);    
-
 
   test = [=](State* s) -> bool {return s->status == 2;};
   p = device_task_pools[2];

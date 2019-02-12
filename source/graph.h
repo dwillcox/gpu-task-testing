@@ -2,12 +2,12 @@
 #define GRAPH_H
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <iostream>
 #include "pool.h"
 #include "state.h"
 #include "unified.h"
 #include "unified_vector.h"
 
-__global__ void pool_kernel(Pool* pool);
 
 class Graph : public UnifiedMemoryClass {
  public:

@@ -2,6 +2,8 @@
 #define DEVICE_VECTOR_H
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <cassert>
+#include <iostream>
 #include "unified.h"
 
 template<class T> class UnifiedVector : public UnifiedMemoryClass {
