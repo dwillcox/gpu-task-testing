@@ -2,6 +2,15 @@
 #define STATE_H
 #include "generic_vector.h"
 
+using clock_value_t = long long;
+
+__device__ void sleep(clock_value_t sleep_cycles) {
+  clock_value_t start = clock64();
+  clock_value_t elapsed;
+  do { elapsed = clock64() - start; }
+  while (elapsed < sleep_cycles);
+}
+
 class State : public UnifiedMemoryClass {
 public:
   double x;
@@ -13,11 +22,15 @@ public:
   __device__
   void cube() {
     x = x * x * x;
+    sleep(1000000000);
   }
 
   __host__ __device__
   void square() {
     x = x * x;
+    #ifdef __CUDA_ARCH__
+    sleep(1000000000);
+    #endif
   }
 
   __device__
