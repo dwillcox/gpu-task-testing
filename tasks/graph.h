@@ -54,7 +54,7 @@ public:
     for (int i = 0; i < device_task_pools.size(); i++) {
       cuda_status = cudaStreamCreate(&(pool_streams[i]));
       assert(cuda_status == cudaSuccess);
-      device_task_pools[i]->set_cuda_stream(&(pool_streams[i]));
+      device_task_pools[i]->set_stream(&(pool_streams[i]));
     }
 
     device_task_pools.sync_to_device();    
@@ -89,9 +89,8 @@ public:
 
 	    // copy task pointers to the device
 	    pool->tasks.sync_to_device();
-	    cuda_status = cudaDeviceSynchronize();
-	    assert(cuda_status == cudaSuccess);	  
-	  
+
+	    // launch kernel
 	    pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);	    
 	  }
 	  i++;

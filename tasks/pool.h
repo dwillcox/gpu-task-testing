@@ -38,10 +38,5 @@ public:
     tasks.resize(0);
     lock->unlock();
   }
-
-  void set_cuda_stream(cudaStream_t* cuda_stream_ptr) {
-    set_stream(cuda_stream_ptr);
-    tasks.set_stream(cuda_stream_ptr);
-  }
 };
 #endif

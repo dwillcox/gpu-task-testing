@@ -7,7 +7,7 @@
 #include "unified.h"
 #include "streamcontainer.h"
 
-template<class T> class GenericVector : public UnifiedMemoryClass, public StreamContainer {
+template<class T> class GenericVector : public UnifiedMemoryClass {
   thrust::host_vector<T> vhost;
   thrust::device_vector<T> vdevice;
   size_t filled_size;
@@ -62,12 +62,26 @@ public:
   }
 
   void sync_from_device() {
+    cudaEvent_t thrust_finished;
+    cudaEventCreate(&thrust_finished);
+
     vhost = vdevice;
+
+    cudaEventRecord(thrust_finished);
+    cudaEventSynchronize(thrust_finished);
+
     update_size();
   }
 
   void sync_to_device() {
+    cudaEvent_t thrust_finished;
+    cudaEventCreate(&thrust_finished);
+    
     vdevice = vhost;
+
+    cudaEventRecord(thrust_finished);
+    cudaEventSynchronize(thrust_finished);
+    
     device_data_ptr = thrust::raw_pointer_cast(vdevice.data());
     update_size();
   }
