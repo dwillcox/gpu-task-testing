@@ -90,11 +90,8 @@ public:
 	    // copy task pointers to the device
 	    pool->tasks.sync_to_device();
 	    cuda_status = cudaDeviceSynchronize();
-	    std::cout << i << ": synchronizing device with result: " << cudaGetErrorString(cuda_status) << std::endl;      
 	    assert(cuda_status == cudaSuccess);	  
 	  
-	    
-	    std::cout << "launching pool_kernel with " << numBlocks << " blocks and " << numThreads << " threads." << std::endl;
 	    pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);	    
 	  }
 	  i++;
@@ -117,13 +114,9 @@ public:
       	cuda_status = cudaStreamSynchronize(pool->get_stream());
       	std::cout << "synchronizing stream " << i << " with result: " << cudaGetErrorString(cuda_status) << std::endl;
       	assert(cuda_status == cudaSuccess);
+	std::cout << "clearing task pool ..." << std::endl;
+	pool->reset();	
 	i++;
-      }
-
-      std::cout << "clearing task pools ..." << std::endl;
-      // clear task pools
-      for (Pool* pool : device_task_pools) {
-	pool->reset();
       }
 
       std::cout << "calling advance ..." << std::endl;

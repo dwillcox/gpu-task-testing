@@ -57,7 +57,8 @@ int main(int argc, char* argv[]) {
 
   cuda_status = cudaMallocManaged(&state, sizeof(State)*size);
   assert(cuda_status == cudaSuccess);
-  
+
+  // create a Graph with 1 host task pool and 2 device task pools
   Graph* task_graph = new Graph(1, 2);
 
   cuda_status = cudaDeviceSynchronize();
