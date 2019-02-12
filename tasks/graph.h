@@ -2,130 +2,143 @@
 #define GRAPH_H
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <thrust/device_vector.h>
-#include <thrust/device_ptr.h>
 #include "pool.h"
-#include "task.h"
+#include "state.h"
 #include "unified.h"
-#include "generic_function.h"
+#include "generic_vector.h"
 
-__global__ void device_execute_graph(void* vgraph);
+__global__ void pool_kernel(Pool* pool);
 
 class Graph : public UnifiedMemoryClass {
 public:
-  DeviceVector<Pool*> task_pools;
-  std::vector<Pool*> task_pools_host;
-  
-  DeviceVector<GenericFunction*> generic_function_table_device;
-  std::vector<GenericFunction*> generic_function_table_host;
-  
-  std::vector<Task*> task_list;
+  GenericVector<Pool*> device_task_pools;
+  GenericVector<Pool*> host_task_pools;  
+  GenericVector<State*> task_registry;
   cudaStream_t* pool_streams;
 
-  //!! this could have race conditions between pool reporting and graph checking
-  int* pool_active_status;
-
-  int num_task_pools;
-
-  // doesn't need a lock because only the device will modify
-  // and the host will check it in a loop.
-  bool active_device_kernels = false;
-  bool streams_allocated = false;
+  bool graph_finished;
   
-  Graph() : num_task_pools(0) {
-    initialize_function_tables();
-    initialize_task_pools();
+  Graph(size_t nhostp, size_t ndevp) : graph_finished(false) {
+    initialize_task_pools(nhostp, ndevp);
+    std::cout << "initialized task pools" << std::endl;
   }
 
   ~Graph() {
-    for (auto p : task_pools_host) {
+    for (Pool* p : device_task_pools) {
       delete p;
     }
-    for (auto gf : generic_function_table_host) {
-      delete gf;
+    for (Pool* p : host_task_pools) {
+      delete p;
     }
-    for (Task* t : task_list) {
+    for (State* t : task_registry) {
       delete t;
     }
-    cudaError_t cuda_status = cudaFree(pool_active_status);
-    assert(cuda_status == cudaSuccess);
   }
-  
-  void initialize_function_tables();
 
-  void initialize_task_pools() {
+  void initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {
     Pool* p;
-    cudaError_t cuda_status = cudaMallocManaged(&pool_active_status, sizeof(int)*num_task_pools);
-    assert(cuda_status == cudaSuccess);
-    for (int i = 0; i < num_task_pools; i++) {
+    
+    for (int i = 0; i < num_host_pools; i++) {
       p = new Pool(i);
-      task_pools_host.push_back(p);
-      pool_active_status[i] = 0;
+      host_task_pools.push_back(p);
     }
-    task_pools.copy_host_to_device(&task_pools_host);
+    
+    for (int i = 0; i < num_device_pools; i++) {
+      p = new Pool(i);
+      device_task_pools.push_back(p);
+    }
+
+    // create 1 CUDA stream per task pool and attach it to the pool
+    cudaError_t cuda_status = cudaMallocManaged(&pool_streams, device_task_pools.size()*sizeof(cudaStream_t));
+    assert(cuda_status == cudaSuccess);
+    for (int i = 0; i < device_task_pools.size(); i++) {
+      cuda_status = cudaStreamCreate(&(pool_streams[i]));
+      assert(cuda_status == cudaSuccess);
+      device_task_pools[i]->set_cuda_stream(&(pool_streams[i]));
+    }
+
+    device_task_pools.sync_to_device();    
   }
 
-  void queue(void* state) {
-    GenericFunction* gf = generic_function_table_host[0];
-    Task* t = new Task(gf, state);
-    task_list.push_back(t);
-    Pool* p = task_pools_host[0];
-    p->checkin(t);
+  void queue(State* state) {
+    task_registry.push_back(state);
   }
 
-  // for now, advance is responsible for deleting all Tasks
-  // created by queue to avoid memory leaks. fix for generality.
-  __host__ __device__ void advance(DeviceVector<Task*>* task_collection);
+  void advance();
 
   void execute_graph() {
     cudaError_t cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
 
-    // create 1 CUDA stream per task pool
-    cuda_status = cudaMallocManaged(&pool_streams, num_task_pools*sizeof(cudaStream_t));
-    assert(cuda_status == cudaSuccess);
-    for (int i = 0; i < num_task_pools; i++) {
-      cuda_status = cudaStreamCreate(&(pool_streams[i]));
-      assert(cuda_status == cudaSuccess);      
+    // Initialize task pools with queued tasks in the registry
+    advance();
+
+    // this is very rough, in the future use events to do all this more asynchronously
+    while (!graph_finished) {
+      std::cout << "starting graph execution" << std::endl;
+
+      // launch device task kernels
+      int i = 0;
+      for (Pool* pool : device_task_pools) {
+	  int ntasks = pool->tasks.size();
+	  std::cout << "got " << ntasks << " ntasks for device pool " << i << std::endl;
+
+	  if (ntasks > 0) {
+	    int numThreads = min(32, ntasks);
+	    int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
+
+	    // copy task pointers to the device
+	    pool->tasks.sync_to_device();
+	    cuda_status = cudaDeviceSynchronize();
+	    std::cout << i << ": synchronizing device with result: " << cudaGetErrorString(cuda_status) << std::endl;      
+	    assert(cuda_status == cudaSuccess);	  
+	  
+	    
+	    std::cout << "launching pool_kernel with " << numBlocks << " blocks and " << numThreads << " threads." << std::endl;
+	    pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);	    
+	  }
+	  i++;
+      }
+
+      // execute host tasks
+      i = 0;
+      for (Pool* pool : host_task_pools) {
+	int ntasks = pool->tasks.size();
+	std::cout << "got " << ntasks << " ntasks for host pool " << i << std::endl;
+	if (ntasks > 0) {
+	  State::batched_advance(pool->tasks);
+	}
+	i++;
+      }      
+
+      // sync streams
+      i = 0;
+      for (Pool* pool : device_task_pools) {
+      	cuda_status = cudaStreamSynchronize(pool->get_stream());
+      	std::cout << "synchronizing stream " << i << " with result: " << cudaGetErrorString(cuda_status) << std::endl;
+      	assert(cuda_status == cudaSuccess);
+	i++;
+      }
+
+      std::cout << "clearing task pools ..." << std::endl;
+      // clear task pools
+      for (Pool* pool : device_task_pools) {
+	pool->reset();
+      }
+
+      std::cout << "calling advance ..." << std::endl;
+      advance();
     }
-    streams_allocated = true;
 
-    // execute host and device kernels for the graph
-    // use 1 block and 1 thread per task pool so we can use __syncthreads
-    active_device_kernels = true;
-
-    // this can't reasonably be bigger than 1024 or reconsider this strategy
-    int numThreads = num_task_pools;
-    int numBlocks = 1;
-    device_execute_graph<<<numBlocks,numThreads>>>(static_cast<void*>(this));
-
-    // !! commented because DeviceVector doesn't support this ...
-    // // !! Change this to only check task pools supporting host execution
-    // thrust::device_vector<Task*> host_task_container;
-    // while (active_device_kernels) {
-    //   for (Pool* p : task_pools) {
-    // 	p->checkout(&host_task_container);
-    // 	for (Task* t_p : host_task_container) {
-    // 	  t_p->execute();
-    // 	}
-    // 	p->report_kernel_finished();
-    //   }
-    // }
-
-    // sync streams
-    for (int i = 0; i < num_task_pools; i++) {
-      cuda_status = cudaStreamSynchronize(pool_streams[i]);
-      assert(cuda_status == cudaSuccess);
-    }
-
-    // is this really needed???
+    // sync device
     cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
 
-    for (int i = 0; i < num_task_pools; i++) {
-      cuda_status = cudaStreamDestroy(pool_streams[i]);
-      assert(cuda_status == cudaSuccess);
-    }    
+    // destroy streams
+    for (Pool* pool : device_task_pools) {
+      cuda_status = cudaStreamDestroy(pool->get_stream());
+      assert(cuda_status == cudaSuccess);      
+    }
   }
 };
 #endif
