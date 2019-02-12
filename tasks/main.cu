@@ -6,7 +6,7 @@
 #include "graph.h"
 #include "pool.h"
 #include "state.h"
-#include "manual_vector.h"
+#include "unified_vector.h"
 
 
 void square_host(void* xv) {
@@ -22,7 +22,7 @@ __global__ void pool_kernel(Pool* pool) {
   }
 }
 
-void Graph::advance(GenericVector<State*>& advance_states) {
+void Graph::advance(UnifiedVector<State*>& advance_states) {
   std::cout << "in advance ..." << std::endl;
 
   std::function<bool(State*)> test;

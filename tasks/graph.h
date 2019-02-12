@@ -5,15 +5,15 @@
 #include "pool.h"
 #include "state.h"
 #include "unified.h"
-#include "manual_vector.h"
+#include "unified_vector.h"
 
 __global__ void pool_kernel(Pool* pool);
 
 class Graph : public UnifiedMemoryClass {
  public:
-    GenericVector<Pool*> device_task_pools;
-    GenericVector<Pool*> host_task_pools;  
-    GenericVector<State*> task_registry;
+    UnifiedVector<Pool*> device_task_pools;
+    UnifiedVector<Pool*> host_task_pools;  
+    UnifiedVector<State*> task_registry;
     cudaStream_t* pool_streams;
 
     bool graph_finished;
@@ -93,7 +93,7 @@ class Graph : public UnifiedMemoryClass {
         return graph_finished;
     }
   
-    void advance(GenericVector<State*>& advance_states);
+    void advance(UnifiedVector<State*>& advance_states);
 
     void execute_graph() {
         cudaError_t cuda_status = cudaDeviceSynchronize();

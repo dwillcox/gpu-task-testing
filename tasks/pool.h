@@ -2,7 +2,7 @@
 #define POOL_H
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "manual_vector.h"
+#include "unified_vector.h"
 #include "state.h"
 #include "lock.h"
 #include "unified.h"
@@ -13,8 +13,8 @@
 class Pool : public UnifiedMemoryClass, public StreamContainer {
   HostDeviceLock* lock;
 public:
-  GenericVector<State*> tasks;
-  GenericVector<State*> checked_out_tasks;
+  UnifiedVector<State*> tasks;
+  UnifiedVector<State*> checked_out_tasks;
   int pool_graph_index;
   bool _is_device_pool;
   bool kernel_running;
@@ -80,7 +80,7 @@ public:
     return checked_out_tasks.size();
   }
 
-  void checkin(GenericVector<State*>* checkin_states, std::function<bool(State*)> test) {
+  void checkin(UnifiedVector<State*>* checkin_states, std::function<bool(State*)> test) {
     lock->lock();
     std::cout << "about to loop" << std::endl;
     std::cout << "filled size is " << checkin_states->filled_size << std::endl;

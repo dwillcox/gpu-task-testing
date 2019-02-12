@@ -1,6 +1,6 @@
 #ifndef STATE_H
 #define STATE_H
-#include "manual_vector.h"
+#include "unified_vector.h"
 
 using clock_value_t = long long;
 
@@ -53,7 +53,7 @@ public:
     }
   }
 
-  static void batched_advance(GenericVector<State*>& batched_states) {
+  static void batched_advance(UnifiedVector<State*>& batched_states) {
     for (State* s : batched_states) {
       if (s->status == 2) {
 	s->square();
