@@ -1,0 +1,100 @@
+device status before Graph: no error
+pushing back into vector
+resizing vector to 1
+pushing back into vector
+resizing vector to 2
+pushing back into vector
+resizing vector to 4
+initialized task pools
+device status after Graph: no error
+pushing back into vector
+resizing vector to 1
+pushing back into vector
+resizing vector to 2
+pushing back into vector
+resizing vector to 4
+pushing back into vector
+pushing back into vector
+resizing vector to 8
+pushing back into vector
+pushing back into vector
+pushing back into vector
+pushing back into vector
+resizing vector to 16
+pushing back into vector
+initializing task pools...
+in advance ...
+calling checkin
+about to loop
+filled size is 10
+allocated size is 16
+pushing back with status 0
+calling push back
+pushing back into vector
+resizing vector to 1
+pushing back with status 0
+calling push back
+pushing back into vector
+resizing vector to 2
+pushing back with status 0
+calling push back
+pushing back into vector
+resizing vector to 4
+pushing back with status 0
+calling push back
+pushing back into vector
+pushing back with status 0
+calling push back
+pushing back into vector
+resizing vector to 8
+pushing back with status 0
+calling push back
+pushing back into vector
+pushing back with status 0
+calling push back
+pushing back into vector
+pushing back with status 0
+calling push back
+pushing back into vector
+pushing back with status 0
+calling push back
+pushing back into vector
+resizing vector to 16
+pushing back with status 0
+calling push back
+pushing back into vector
+about to loop
+filled size is 10
+allocated size is 16
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+about to loop
+filled size is 10
+allocated size is 16
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+pushing back with status 0
+leaving advance ...
+starting graph execution...
+looping bc not completed
+Evaluating if device kernels finished:
+Evaluating if device kernels ready:
+got 10 ntasks for device pool (ready)0
+resizing vector to 10
+resizing vector to 0
+main.exe: manual_vector.h:66: void GenericVector<T>::resize(size_t) [with T = State*; size_t = long unsigned int]: Assertion `cuda_status == cudaSuccess' failed.
