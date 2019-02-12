@@ -1,6 +1,8 @@
 #ifndef POOL_H
 #define POOL_H
-#include "generic_vector.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
+#include "manual_vector.h"
 #include "state.h"
 #include "lock.h"
 #include "unified.h"
@@ -78,10 +80,19 @@ public:
     return checked_out_tasks.size();
   }
 
-  void checkin(GenericVector<State*> checkin_states, std::function<bool(State*)> test) {
+  void checkin(GenericVector<State*>* checkin_states, std::function<bool(State*)> test) {
     lock->lock();
-    for (State* s : checkin_states) {
-        if (test(s)) tasks.push_back(s);
+    std::cout << "about to loop" << std::endl;
+    std::cout << "filled size is " << checkin_states->filled_size << std::endl;
+    std::cout << "allocated size is " << checkin_states->allocated_size << std::endl;    
+    //    for (State* s : checkin_states) {
+    for (int i = 0; i < checkin_states->filled_size; i++) {
+        State* s = (*checkin_states)[i];
+        std::cout << "testing if push back with status " << s->status << std::endl;
+        if (test(s)) {
+            std::cout << "calling push back" << std::endl;
+            tasks.push_back(s);
+        }
     }
     lock->unlock();
   }

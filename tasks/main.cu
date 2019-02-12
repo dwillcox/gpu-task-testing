@@ -1,11 +1,13 @@
 #include <iostream>
 #include <cassert>
+#include <functional>
 #include "unified.h"
 #include "lock.h"
 #include "graph.h"
 #include "pool.h"
 #include "state.h"
-#include "generic_vector.h"
+#include "manual_vector.h"
+
 
 void square_host(void* xv) {
   State* state = static_cast<State*>(xv);
@@ -16,9 +18,7 @@ __global__ void pool_kernel(Pool* pool) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
   size_t size = pool->checked_out_tasks.size();
   if (tid < size) {
-    GenericVector<State*>* vptr = &pool->checked_out_tasks;
-    State** s = vptr->get_device_pointer_to(tid);
-    (*s)->advance();
+      pool->checked_out_tasks[tid]->advance();
   }
 }
 
@@ -26,21 +26,22 @@ void Graph::advance(GenericVector<State*>& advance_states) {
   std::cout << "in advance ..." << std::endl;
 
   std::function<bool(State*)> test;
-  Pool**p;
+  Pool* p;
   
   test = [=](State* s) -> bool {return s->status == 0;};
-  p = device_task_pools.get_pointer_to(0);
-  (*p)->checkin(advance_states, test);  
+  p = device_task_pools[0];
+  std::cout << "calling checkin" << std::endl;
+  p->checkin(&advance_states, test);  
 
   test = [=](State* s) -> bool {return s->status == 1;};  
-  p = device_task_pools.get_pointer_to(1);
-  (*p)->checkin(advance_states, test);    
+  p = device_task_pools[1];
+  p->checkin(&advance_states, test);    
 
 
   test = [=](State* s) -> bool {return s->status == 2;};
-//  p = device_task_pools.get_pointer_to(2);
-  p = host_task_pools.get_pointer_to(0);    
-  (*p)->checkin(advance_states, test);    
+  p = device_task_pools[2];
+//  p = host_task_pools[0];    
+  p->checkin(&advance_states, test);    
   
   std::cout << "leaving advance ..." << std::endl;  
 }
@@ -49,7 +50,7 @@ void Graph::advance(GenericVector<State*>& advance_states) {
 int main(int argc, char* argv[]) {
 
   State* state = NULL;
-  int size = 10000;
+  int size = 1000;
 
   cudaError_t cuda_status = cudaSuccess;
   cuda_status = cudaDeviceSynchronize();
@@ -59,17 +60,17 @@ int main(int argc, char* argv[]) {
   assert(cuda_status == cudaSuccess);
 
   // create a Graph with 1 host task pool and 2 device task pools
-  //Graph* task_graph = new Graph(0, 3);
-  Graph* task_graph = new Graph(1, 2);  
+  Graph* task_graph = new Graph(size, 0, 3);
+  //Graph* task_graph = new Graph(size, 1, 2);  
 
   cuda_status = cudaDeviceSynchronize();
   std::cout << "device status after Graph: " << cudaGetErrorString(cuda_status) << std::endl;
 
   for (int i = 0; i < size; i++) {
     state[i].x = 2.0;
-    if (i > 2000 && i < 7000)
+    if (i > 200 && i < 700)
       state[i].status = 1;
-    else if (i <= 2000)
+    else if (i <= 200)
       state[i].status = 0;
     else
       state[i].status = 2;
@@ -85,7 +86,7 @@ int main(int argc, char* argv[]) {
 
   std::cout << "sum of elementwise squared cubed squared x is: " << xsum << std::endl;
 
-  if (xsum == 40960000.0) std::cout << "SUCCESS!" << std::endl;
+  if (xsum == 4096*size) std::cout << "SUCCESS!" << std::endl;
   else std::cout << "ERROR!" << std::endl;
   
   return 0;
