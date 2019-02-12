@@ -1,2 +1,3 @@
 # gpu-task-testing
-Test gpu task based
+
+Test GPU task based kernel management.
