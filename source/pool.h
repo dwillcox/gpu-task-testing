@@ -85,7 +85,6 @@ public:
     lock->lock();
     for (State* s : checkin_states) {
         if (pool_map(s) == pool_graph_index) {
-            std::cout << "pushing back state with status " << s->status << " into pool index " << pool_graph_index << std::endl;
             tasks.push_back(s);
         }
     }
