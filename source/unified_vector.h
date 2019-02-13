@@ -53,15 +53,12 @@ public:
     }
 
     void push_back(T element) {
-        std::cout << "pushing back into vector" << std::endl;
         if (filled_size+1 > allocated_size) resize(max(2*allocated_size, static_cast<size_t>(1)));
-        //*(data_ptr + filled_size) = element;
         new (data_ptr + filled_size) T(element);
         filled_size++;
     }
     
     void resize(size_t new_size) {
-        std::cout << "resizing vector to " << new_size << std::endl;
         if (new_size == 0) filled_size = 0;
         else {
             cudaError_t cuda_status = cudaFree(data_ptr);
