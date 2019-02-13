@@ -65,8 +65,12 @@ void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools
     }
 }
 
-void Graph::set_state_pool_map(std::function<int (State*)> map) {
+void Graph::set_state_pool_map_function(std::function<int (State*)> map) {
     map_state_to_pool = map;
+}
+
+void Graph::set_state_completed_function(std::function<bool (State*)> check) {
+    check_state_completed = check;
 }
 
 void Graph::queue(State* state) {
@@ -76,7 +80,7 @@ void Graph::queue(State* state) {
 bool Graph::completed() {
     bool tasks_unfinished = false;
     for (State* state : task_registry) {
-        if (state->status != 3) {
+        if (!check_state_completed(state)) {
             tasks_unfinished = true;
             break;
         }

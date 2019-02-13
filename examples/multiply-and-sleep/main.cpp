@@ -14,7 +14,7 @@ void square_host(void* xv) {
 std::function<int (State*)> create_state_pool_map() {
     // Return value is the global pool index spanning host and device pools.
     // Pools are indexed from 0 to N, with host pools first and then device pools next.
-    return [=](State* s) -> int {
+    return [](State* s) -> int {
         // This implementation is meant for num_host_pools + num_device_pools = 3;
         // This choice of pool index will put status=2 states into a host pool
         // if num_host_pools = 1 and into a device pool if num_host_pools = 0.
@@ -46,7 +46,10 @@ int main(int argc, char* argv[]) {
 
   Graph* task_graph = new Graph(size, num_host_pools, num_device_pools);
 
-  task_graph->set_state_pool_map(create_state_pool_map());
+  task_graph->set_state_pool_map_function(create_state_pool_map());
+
+  auto check_state_completed = [](State* s) -> bool {return s->status == 3;};
+  task_graph->set_state_completed_function(check_state_completed);
 
   cuda_status = cudaDeviceSynchronize();
   assert(cuda_status == cudaSuccess);  
