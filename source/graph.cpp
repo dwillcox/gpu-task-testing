@@ -107,27 +107,27 @@ void Graph::execute_graph() {
 
     while (!completed()) {
 
-        //std::cout << "looping bc not completed" << std::endl;
+        std::cout << "looping bc not completed" << std::endl;
 
-        //std::cout << "Evaluating if device kernels finished:" << std::endl;
+        std::cout << "Evaluating if device kernels finished:" << std::endl;
         // check if previous device pool kernels finished and advance states
         int i = 0;
         for (Pool* pool : device_task_pools) {
             if (pool->finished()) {
-                //std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
+                std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        //std::cout << "Evaluating if device kernels ready:" << std::endl;
+        std::cout << "Evaluating if device kernels ready:" << std::endl;
         // launch device task kernels for pools that are ready
         i = 0;
         for (Pool* pool : device_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                //std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;
+                std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;
                 int numThreads = min(32, ntasks);
                 int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
 
@@ -142,32 +142,36 @@ void Graph::execute_graph() {
             i++;
         }
 
-        //std::cout << "Evaluating if host kernels finished:" << std::endl;
+        std::cout << "Evaluating if host kernels finished:" << std::endl;
         // check if previous host pool kernels finished and advance states
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->finished()) {
-                //std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;
+                std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        //std::cout << "Evaluating if host kernels ready:" << std::endl;
+        std::cout << "Evaluating if host kernels ready:" << std::endl;
         // execute host tasks
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                //std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
+                std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
 
                 // checkout
                 pool->checkout();
                 pool->set_active();
 
+                std::cout << "running host pool" << std::endl;
+
                 // run batched tasks
                 State::batched_advance(pool->checked_out_tasks);
+
+                std::cout << "finished host pool" << std::endl;                
 
                 pool->set_inactive();
 

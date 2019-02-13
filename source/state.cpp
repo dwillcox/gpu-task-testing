@@ -44,7 +44,13 @@ void State::advance() {
 }
 
 void State::batched_advance(UnifiedVector<State*>& batched_states) {
+    std::cout << "size of checked_out_tasks: " << batched_states.size() << std::endl;
+    std::cout << "begin: " << batched_states.begin() << std::endl;
+    std::cout << "end: " << batched_states.end() << std::endl;
+    std::cout << "difference : " << batched_states.end() - batched_states.begin() << std::endl;
+    int i = 0;
     for (State* s : batched_states) {
+        std::cout << "state index " << i << ": status = " << s->status << std::endl;
         if (s->status == 2) {
             s->square();
             s->counter++;

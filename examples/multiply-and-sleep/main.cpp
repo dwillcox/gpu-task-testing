@@ -4,6 +4,8 @@
 #include "graph.h"
 #include "state.h"
 
+#define USE_HOST_BATCHED_POOL 1
+
 void square_host(void* xv) {
   State* state = static_cast<State*>(xv);
   state->x = (state->x) * (state->x);
@@ -32,18 +34,22 @@ int main(int argc, char* argv[]) {
 
   cudaError_t cuda_status = cudaSuccess;
   cuda_status = cudaDeviceSynchronize();
-  std::cout << "device status before Graph: " << cudaGetErrorString(cuda_status) << std::endl;
+  assert(cuda_status == cudaSuccess);  
 
   cuda_status = cudaMallocManaged(&state, sizeof(State)*size);
   assert(cuda_status == cudaSuccess);
 
+  if (USE_HOST_BATCHED_POOL) {
+      num_host_pools = 1;
+      num_device_pools = 2;
+  }
+
   Graph* task_graph = new Graph(size, num_host_pools, num_device_pools);
-  //Graph* task_graph = new Graph(size, 1, 2);
 
   task_graph->set_state_pool_map(create_state_pool_map());
 
   cuda_status = cudaDeviceSynchronize();
-  std::cout << "device status after Graph: " << cudaGetErrorString(cuda_status) << std::endl;
+  assert(cuda_status == cudaSuccess);  
 
   for (int i = 0; i < size; i++) {
     state[i].x = 2.0;
