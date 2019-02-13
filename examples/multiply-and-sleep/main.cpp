@@ -1,41 +1,12 @@
 #include <iostream>
 #include <cassert>
-#include <functional>
-#include "unified.h"
 #include "graph.h"
-#include "pool.h"
 #include "state.h"
-#include "unified_vector.h"
-
 
 void square_host(void* xv) {
   State* state = static_cast<State*>(xv);
   state->x = (state->x) * (state->x);
 }
-
-void Graph::advance(UnifiedVector<State*>& advance_states) {
-  std::cout << "in advance ..." << std::endl;
-
-  std::function<bool(State*)> test;
-  Pool* p;
-  
-  test = [=](State* s) -> bool {return s->status == 0;};
-  p = device_task_pools[0];
-  std::cout << "calling checkin" << std::endl;
-  p->checkin(&advance_states, test);  
-
-  test = [=](State* s) -> bool {return s->status == 1;};  
-  p = device_task_pools[1];
-  p->checkin(&advance_states, test);    
-
-  test = [=](State* s) -> bool {return s->status == 2;};
-  p = device_task_pools[2];
-//  p = host_task_pools[0];    
-  p->checkin(&advance_states, test);    
-  
-  std::cout << "leaving advance ..." << std::endl;  
-}
-
 
 int main(int argc, char* argv[]) {
 

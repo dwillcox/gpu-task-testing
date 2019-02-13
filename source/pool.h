@@ -119,5 +119,5 @@ public:
   }  
 };
 
-__global__ void pool_kernel(Pool* pool);
+__global__ void pool_kernel(Pool*);
 #endif
