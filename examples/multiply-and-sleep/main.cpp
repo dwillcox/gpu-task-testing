@@ -11,17 +11,17 @@ void square_host(void* xv) {
   state->x = (state->x) * (state->x);
 }
 
-std::function<size_t (State*)> create_state_pool_map() {
+std::function<int (State*)> create_state_pool_map() {
     // Return value is the global pool index spanning host and device pools.
     // Pools are indexed from 0 to N, with host pools first and then device pools next.
-    return [=](State* s) -> size_t {
+    return [=](State* s) -> int {
         // This implementation is meant for num_host_pools + num_device_pools = 3;
         // This choice of pool index will put status=2 states into a host pool
         // if num_host_pools = 1 and into a device pool if num_host_pools = 0.
-        if (s->status == 0) return 2;
-        else if (s->status == 1) return 1;
+        if (s->status == 1) return 2;
+        else if (s->status == 0) return 1;
         else if (s->status == 2) return 0;
-        else return 99; // there is no pool 99 so these states won't go into any pool.
+        else return -1; // there is no pool -1 so these states won't go into any pool.
     };
 }
 
