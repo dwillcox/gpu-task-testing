@@ -11,19 +11,21 @@ template<class T> class UnifiedVector : public UnifiedMemoryClass {
 public:
     size_t filled_size;
     size_t allocated_size;
-    T* data_ptr;    
+    T* data_ptr;
+
     UnifiedVector(size_t create_size = 0) {
         cudaError_t cuda_status = cudaSuccess;
         cudaMallocManaged(&data_ptr, sizeof(T)*create_size);
         cuda_status = cudaDeviceSynchronize();
-        assert(cuda_status == cudaSuccess);        
+        assert(cuda_status == cudaSuccess);
         allocated_size = create_size;
+        filled_size = 0;
     }
-  
+
     ~UnifiedVector() {
         cudaError_t cuda_status = cudaFree(data_ptr);
         allocated_size = 0;
-        assert(cuda_status == cudaSuccess);        
+        assert(cuda_status == cudaSuccess);
     }
 
     __host__ __device__ T* begin() {
@@ -57,14 +59,23 @@ public:
         new (data_ptr + filled_size) T(element);
         filled_size++;
     }
-    
+
     void resize(size_t new_size) {
         if (new_size == 0) filled_size = 0;
         else {
-            cudaError_t cuda_status = cudaFree(data_ptr);
+            T* new_data_ptr;
+            cudaError_t cuda_status = cudaSuccess;
+
+            cuda_status = cudaMallocManaged(&new_data_ptr, sizeof(T)*new_size);
             assert(cuda_status == cudaSuccess);
-            cuda_status = cudaMallocManaged(&data_ptr, sizeof(T)*new_size);
+
+            size_t num_elements_to_copy = min(new_size, filled_size);
+            memcpy(new_data_ptr, data_ptr, sizeof(T)*num_elements_to_copy);
+
+            cuda_status = cudaFree(data_ptr);
             assert(cuda_status == cudaSuccess);
+
+            data_ptr = new_data_ptr;
             allocated_size = new_size;
         }
     }
