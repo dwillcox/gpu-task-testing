@@ -3,10 +3,10 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
-#include "pool.h"
-#include "state.h"
-#include "unified.h"
-#include "unified_vector.h"
+#include "pool.H"
+#include "state.H"
+#include "unified.H"
+#include "unified_vector.H"
 
 
 class Graph : public UnifiedMemoryClass {

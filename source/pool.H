@@ -4,11 +4,11 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <functional>
-#include "unified_vector.h"
-#include "state.h"
-#include "lock.h"
-#include "unified.h"
-#include "streamcontainer.h"
+#include "unified_vector.H"
+#include "state.H"
+#include "lock.H"
+#include "unified.H"
+#include "streamcontainer.H"
 
 // As a first pass, let's use Pool-wide locking
 class Pool : public UnifiedMemoryClass, public StreamContainer {

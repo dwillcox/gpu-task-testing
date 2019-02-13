@@ -1,7 +1,7 @@
 #ifndef LOCK_H
 #define LOCK_H
 #include <cassert>
-#include "unified.h"
+#include "unified.H"
 
 class HostDeviceLock : public UnifiedMemoryClass {
   int* mutex;

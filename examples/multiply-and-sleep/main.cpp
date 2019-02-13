@@ -1,10 +1,10 @@
 #include <iostream>
 #include <cassert>
 #include <functional>
-#include "graph.h"
-#include "state.h"
+#include "graph.H"
+#include "state.H"
 
-#define USE_HOST_BATCHED_POOL 1
+#define USE_HOST_BATCHED_POOL 0
 
 void square_host(void* xv) {
   State* state = static_cast<State*>(xv);

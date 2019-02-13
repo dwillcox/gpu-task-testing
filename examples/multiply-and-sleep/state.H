@@ -1,6 +1,6 @@
 #ifndef STATE_H
 #define STATE_H
-#include "unified_vector.h"
+#include "unified_vector.H"
 
 class State : public UnifiedMemoryClass {
 public:

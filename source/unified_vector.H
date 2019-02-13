@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include <cassert>
 #include <iostream>
-#include "unified.h"
+#include "unified.H"
 
 template<class T> class UnifiedVector : public UnifiedMemoryClass {
 

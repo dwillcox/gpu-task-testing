@@ -1,0 +1,14 @@
+#ifndef STATE_H
+#define STATE_H
+#include "unified_vector.H"
+
+class State : public UnifiedMemoryClass {
+public:
+  State() {}
+
+  __device__
+      void advance();
+
+  static void batched_advance(UnifiedVector<State*>&);
+};
+#endif

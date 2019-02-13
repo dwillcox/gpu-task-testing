@@ -1,4 +1,4 @@
-#include "graph.h"
+#include "graph.H"
 
 Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
     graph_finished = false;

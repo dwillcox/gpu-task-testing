@@ -1,5 +1,5 @@
-#include "pool.h"
-#include "state.h"
+#include "pool.H"
+#include "state.H"
 
 __global__ void pool_kernel(Pool* pool) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;

@@ -1,4 +1,4 @@
-#include "lock.h"
+#include "lock.H"
 
 __global__ static void device_mutex_lock(int* mutex) {
   int tid = blockIdx.x * blockDim.x + threadIdx.x;
