@@ -81,7 +81,7 @@ public:
     return checked_out_tasks.size();
   }
 
-  void checkin(UnifiedVector<State*>& checkin_states, std::function<size_t (State*)> pool_map) {
+  void checkin(UnifiedVector<State*>& checkin_states, std::function<int (State*)> pool_map) {
     lock->lock();
     for (State* s : checkin_states) {
         if (pool_map(s) == pool_graph_index) {

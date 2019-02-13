@@ -14,7 +14,7 @@ public:
     UnifiedVector<Pool*> device_task_pools;
     UnifiedVector<Pool*> host_task_pools;  
     UnifiedVector<State*> task_registry;
-    std::function<size_t (State*)> map_state_to_pool;
+    std::function<int (State*)> map_state_to_pool;
     cudaStream_t* pool_streams;
 
     bool graph_finished;
@@ -25,7 +25,7 @@ public:
 
     void initialize_task_pools(size_t, size_t);
 
-    void set_state_pool_map(std::function<size_t (State*)>);
+    void set_state_pool_map(std::function<int (State*)>);
 
     void queue(State*);
 

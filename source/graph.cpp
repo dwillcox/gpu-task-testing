@@ -7,6 +7,10 @@ Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
         p->tasks.resize(nstates);
         p->checked_out_tasks.resize(nstates);
     }
+    for (Pool* p : host_task_pools) {
+        p->tasks.resize(nstates);
+        p->checked_out_tasks.resize(nstates);
+    }    
     task_registry.resize(nstates);
     std::cout << "initialized task pools" << std::endl;
 }
@@ -61,7 +65,7 @@ void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools
     }
 }
 
-void Graph::set_state_pool_map(std::function<size_t (State*)> map) {
+void Graph::set_state_pool_map(std::function<int (State*)> map) {
     map_state_to_pool = map;
 }
 
