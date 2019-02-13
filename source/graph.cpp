@@ -15,19 +15,19 @@ Graph::~Graph() {
     cudaError_t cuda_status = cudaSuccess;
     for (Pool* p : device_task_pools) {
         cuda_status = cudaStreamDestroy(p->get_stream());
-        assert(cuda_status == cudaSuccess);      
+        assert(cuda_status == cudaSuccess);
     }
     cuda_status = cudaFree(pool_streams);
     assert(cuda_status == cudaSuccess);
-    
+
     for (Pool* p : device_task_pools) {
         delete p;
     }
-    
+
     for (Pool* p : host_task_pools) {
         delete p;
     }
-    
+
     for (State* t : task_registry) {
         delete t;
     }
@@ -36,14 +36,14 @@ Graph::~Graph() {
 void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {
     Pool* p;
     int ipool = 0;
-    
+
     for (int i = 0; i < num_host_pools; i++) {
         p = new Pool(ipool);
         p->set_host_pool();
         host_task_pools.push_back(p);
         ipool++;
     }
-    
+
     for (int i = 0; i < num_device_pools; i++) {
         p = new Pool(ipool);
         p->set_device_pool();
@@ -92,50 +92,49 @@ void Graph::advance(UnifiedVector<State*>& advance_states) {
         p->checkin(advance_states, map_state_to_pool);
     }
 
-    std::cout << "leaving advance ..." << std::endl;  
+    std::cout << "leaving advance ..." << std::endl;
 }
 
 void Graph::execute_graph() {
     cudaError_t cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
 
-    // Initialize task pools with queued tasks in the registry    
+    // Initialize task pools with queued tasks in the registry
     std::cout << "initializing task pools..." << std::endl;
     advance(task_registry);
 
-    std::cout << "starting graph execution..." << std::endl;    
-    
+    std::cout << "starting graph execution..." << std::endl;
+
     while (!completed()) {
 
-        std::cout << "looping bc not completed" << std::endl;
+        //std::cout << "looping bc not completed" << std::endl;
 
-        std::cout << "Evaluating if device kernels finished:" << std::endl;
+        //std::cout << "Evaluating if device kernels finished:" << std::endl;
         // check if previous device pool kernels finished and advance states
         int i = 0;
         for (Pool* pool : device_task_pools) {
             if (pool->finished()) {
-                std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
+                //std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        std::cout << "Evaluating if device kernels ready:" << std::endl;            
+        //std::cout << "Evaluating if device kernels ready:" << std::endl;
         // launch device task kernels for pools that are ready
-        i = 0;            
-        for (Pool* pool : device_task_pools) {      
+        i = 0;
+        for (Pool* pool : device_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;      
+                //std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;
                 int numThreads = min(32, ntasks);
                 int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
 
-                /* // checkout and copy task pointers to the device */
+                // checkout and copy task pointers to the device
                 pool->checkout();
-                //pool->checked_out_tasks.sync_to_device();
                 pool->set_active();
-      
+
                 // launch kernel
                 pool_kernel<<<numBlocks, numThreads, 0, pool->get_stream()>>>(pool);
                 cudaEventRecord(pool->kernel_finished, pool->get_stream());
@@ -143,25 +142,25 @@ void Graph::execute_graph() {
             i++;
         }
 
-        std::cout << "Evaluating if host kernels finished:" << std::endl;                                    
-        // check if previous host pool kernels finished and advance states      
+        //std::cout << "Evaluating if host kernels finished:" << std::endl;
+        // check if previous host pool kernels finished and advance states
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->finished()) {
-                std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;                    
+                //std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        std::cout << "Evaluating if host kernels ready:" << std::endl;                        
+        //std::cout << "Evaluating if host kernels ready:" << std::endl;
         // execute host tasks
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
+                //std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
 
                 // checkout
                 pool->checkout();
@@ -177,7 +176,7 @@ void Graph::execute_graph() {
         }
 
     }
-    
+
     // sync device
     cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
