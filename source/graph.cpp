@@ -35,17 +35,20 @@ Graph::~Graph() {
 
 void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {
     Pool* p;
+    int ipool = 0;
     
     for (int i = 0; i < num_host_pools; i++) {
-        p = new Pool(i);
+        p = new Pool(ipool);
         p->set_host_pool();
         host_task_pools.push_back(p);
+        ipool++;
     }
     
     for (int i = 0; i < num_device_pools; i++) {
-        p = new Pool(i);
+        p = new Pool(ipool);
         p->set_device_pool();
         device_task_pools.push_back(p);
+        ipool++;
     }
 
     // create 1 CUDA stream per task pool and attach it to the pool
@@ -56,6 +59,10 @@ void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools
         assert(cuda_status == cudaSuccess);
         device_task_pools[i]->set_stream(&(pool_streams[i]));
     }
+}
+
+void Graph::set_state_pool_map(std::function<size_t (State*)> map) {
+    map_state_to_pool = map;
 }
 
 void Graph::queue(State* state) {
@@ -77,23 +84,14 @@ bool Graph::completed() {
 void Graph::advance(UnifiedVector<State*>& advance_states) {
     std::cout << "in advance ..." << std::endl;
 
-    std::function<bool(State*)> test;
-    Pool* p;
-  
-    test = [=](State* s) -> bool {return s->status == 0;};
-    p = device_task_pools[0];
-    std::cout << "calling checkin" << std::endl;
-    p->checkin(&advance_states, test);  
+    for (Pool* p : device_task_pools) {
+        p->checkin(advance_states, map_state_to_pool);
+    }
 
-    test = [=](State* s) -> bool {return s->status == 1;};  
-    p = device_task_pools[1];
-    p->checkin(&advance_states, test);    
+    for (Pool* p : host_task_pools) {
+        p->checkin(advance_states, map_state_to_pool);
+    }
 
-    test = [=](State* s) -> bool {return s->status == 2;};
-    p = device_task_pools[2];
-    //  p = host_task_pools[0];    
-    p->checkin(&advance_states, test);    
-  
     std::cout << "leaving advance ..." << std::endl;  
 }
 

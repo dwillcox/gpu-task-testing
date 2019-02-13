@@ -81,17 +81,10 @@ public:
     return checked_out_tasks.size();
   }
 
-  void checkin(UnifiedVector<State*>* checkin_states, std::function<bool(State*)> test) {
+  void checkin(UnifiedVector<State*>& checkin_states, std::function<size_t (State*)> pool_map) {
     lock->lock();
-    std::cout << "about to loop" << std::endl;
-    std::cout << "filled size is " << checkin_states->filled_size << std::endl;
-    std::cout << "allocated size is " << checkin_states->allocated_size << std::endl;    
-    //    for (State* s : checkin_states) {
-    for (int i = 0; i < checkin_states->filled_size; i++) {
-        State* s = (*checkin_states)[i];
-        std::cout << "testing if push back with status " << s->status << std::endl;
-        if (test(s)) {
-            std::cout << "calling push back" << std::endl;
+    for (State* s : checkin_states) {
+        if (pool_map(s) == pool_graph_index) {
             tasks.push_back(s);
         }
     }
