@@ -44,7 +44,6 @@ void State::advance() {
 }
 
 void State::batched_advance(UnifiedVector<State*>& batched_states) {
-    int i = 0;
     for (State* s : batched_states) {
         if (s->status == 2) {
             s->square();
