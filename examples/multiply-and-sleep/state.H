@@ -18,7 +18,5 @@ public:
 
   __device__
       void advance();
-
-  static void batched_advance(UnifiedVector<State*>&);
 };
 #endif

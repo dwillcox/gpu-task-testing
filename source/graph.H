@@ -5,6 +5,7 @@
 #include <iostream>
 #include "pool.H"
 #include "state.H"
+#include "multistate.H"
 #include "unified.H"
 #include "unified_vector.H"
 
@@ -16,6 +17,8 @@ public:
     UnifiedVector<State*> task_registry;
     std::function<int (State*)> map_state_to_pool;
     std::function<bool (State*)> check_state_completed;
+    MultiState* multistate;
+
     cudaStream_t* pool_streams;
 
     bool graph_finished;

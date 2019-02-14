@@ -1,6 +1,8 @@
 #include "graph.H"
 
 Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
+    multistate = new MultiState(nstates);
+
     graph_finished = false;
     initialize_task_pools(nhostp, ndevp);
     for (Pool* p : device_task_pools) {
@@ -16,6 +18,8 @@ Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
 }
 
 Graph::~Graph() {
+    delete multistate;
+
     cudaError_t cuda_status = cudaSuccess;
     for (Pool* p : device_task_pools) {
         cuda_status = cudaStreamDestroy(p->get_stream());
@@ -175,7 +179,7 @@ void Graph::execute_graph() {
                 pool->set_active();
 
                 // run batched tasks
-                State::batched_advance(pool->checked_out_tasks);
+                multistate->advance(pool->checked_out_tasks);
 
                 pool->set_inactive();
 

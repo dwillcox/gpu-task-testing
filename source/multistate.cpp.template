@@ -1,0 +1,7 @@
+#include "multistate.H"
+
+MultiState::MultiState(size_t max_states) {}
+
+MultiState::~MultiState() {}
+
+void MultiState::advance(UnifiedVector<State*>& batched_states) {}

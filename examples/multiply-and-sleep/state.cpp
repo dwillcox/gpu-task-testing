@@ -43,13 +43,3 @@ void State::advance() {
     }
 }
 
-void State::batched_advance(UnifiedVector<State*>& batched_states) {
-    for (State* s : batched_states) {
-        if (s->status == 2) {
-            s->square();
-            s->counter++;
-            if (s->counter == 3) s->status = 3;
-            else s->status = 0;
-        }
-    }
-}
