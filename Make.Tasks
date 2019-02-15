@@ -1,6 +1,10 @@
 AMREX_HOME ?= /path/to/amrex
 GPU_TASKS_HOME ?= /path/to/tasks
 
+LINK_CUSOLVER ?= FALSE
+USE_HOST_ONLY ?= FALSE
+USE_VERBOSE_DEBUG ?= FALSE
+
 # default is to compile with CUDA
 USE_CUDA ?= TRUE
 
@@ -10,6 +14,30 @@ EBASE ?= main
 
 # EXTERN_CORE is simply a list of the directories we use for runtime parameters
 EXTERN_CORE ?=
+
+#------------------------------------------------------------------------------
+# Extra Libraries
+#------------------------------------------------------------------------------
+
+ifeq ($(LINK_CUSOLVER), TRUE)
+  LIBRARIES += -lcusolver -lcusparse -lcublas
+endif
+
+#------------------------------------------------------------------------------
+# Preprocessor Definitions
+#------------------------------------------------------------------------------
+
+ifeq ($(USE_HOST_ONLY), TRUE)
+  DEFINES += -DEXECUTE_HOST_ONLY
+endif
+
+ifeq ($(USE_VERBOSE_DEBUG), TRUE)
+  DEFINES += -DVERBOSE_DEBUG
+endif
+
+#------------------------------------------------------------------------------
+# Standard AMReX Build Definitions
+#------------------------------------------------------------------------------
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 
@@ -24,7 +52,6 @@ Bdirs := source
 
 Bpack += $(foreach dir, $(Bdirs), $(TOP)/$(dir)/Make.package)
 Blocs += $(foreach dir, $(Bdirs), $(TOP)/$(dir))
-
 
 #------------------------------------------------------------------------------
 # AMReX

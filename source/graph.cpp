@@ -1,5 +1,7 @@
 #include "graph.H"
 
+#define VERBOSE_DEBUG 0
+
 Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
     multistate = new MultiState(nstates);
 
@@ -12,7 +14,7 @@ Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
     for (Pool* p : host_task_pools) {
         p->tasks.resize(nstates);
         p->checked_out_tasks.resize(nstates);
-    }    
+    }
     task_registry.resize(nstates);
     std::cout << "initialized task pools" << std::endl;
 }
@@ -94,7 +96,9 @@ bool Graph::completed() {
 }
 
 void Graph::advance(UnifiedVector<State*>& advance_states) {
+#if VERBOSE_DEBUG
     std::cout << "in advance ..." << std::endl;
+#endif
 
     for (Pool* p : device_task_pools) {
         p->checkin(advance_states, map_state_to_pool);
@@ -104,7 +108,9 @@ void Graph::advance(UnifiedVector<State*>& advance_states) {
         p->checkin(advance_states, map_state_to_pool);
     }
 
+#if VERBOSE_DEBUG
     std::cout << "leaving advance ..." << std::endl;
+#endif
 }
 
 void Graph::execute_graph() {
@@ -119,27 +125,35 @@ void Graph::execute_graph() {
 
     while (!completed()) {
 
-        //std::cout << "looping bc not completed" << std::endl;
+#if VERBOSE_DEBUG
+        std::cout << "looping bc not completed" << std::endl;
+        std::cout << "Evaluating if device kernels finished:" << std::endl;
+#endif
 
-        //std::cout << "Evaluating if device kernels finished:" << std::endl;
         // check if previous device pool kernels finished and advance states
         int i = 0;
         for (Pool* pool : device_task_pools) {
             if (pool->finished()) {
-                //std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
+#if VERBOSE_DEBUG
+                std::cout << "device pool " << i << " is finished, advancing its tasks ..." << std::endl;
+#endif
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        //std::cout << "Evaluating if device kernels ready:" << std::endl;
+#if VERBOSE_DEBUG
+        std::cout << "Evaluating if device kernels ready:" << std::endl;
+#endif
         // launch device task kernels for pools that are ready
         i = 0;
         for (Pool* pool : device_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                //std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;
+#if VERBOSE_DEBUG
+                std::cout << "got " << ntasks << " ntasks for device pool (ready)" << i << std::endl;
+#endif
                 int numThreads = min(32, ntasks);
                 int numBlocks = static_cast<int>(ceil(((double) ntasks)/((double) numThreads)));
 
@@ -154,25 +168,33 @@ void Graph::execute_graph() {
             i++;
         }
 
-        //std::cout << "Evaluating if host kernels finished:" << std::endl;
+#if VERBOSE_DEBUG
+        std::cout << "Evaluating if host kernels finished:" << std::endl;
+#endif
         // check if previous host pool kernels finished and advance states
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->finished()) {
-                //std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;
+#if VERBOSE_DEBUG
+                std::cout << "host pool " << i << " is finished, advancing its tasks ..." << std::endl;
+#endif
                 advance(pool->checked_out_tasks);
                 pool->reset_checked_out_tasks();
             }
             i++;
         }
 
-        //std::cout << "Evaluating if host kernels ready:" << std::endl;
+#if VERBOSE_DEBUG
+        std::cout << "Evaluating if host kernels ready:" << std::endl;
+#endif
         // execute host tasks
         i = 0;
         for (Pool* pool : host_task_pools) {
             if (pool->ready()) {
                 int ntasks = pool->size_queued();
-                //std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
+#if VERBOSE_DEBUG
+                std::cout << "got " << ntasks << " ntasks for host pool (ready)" << i << std::endl;
+#endif
 
                 // checkout
                 pool->checkout();
@@ -182,9 +204,8 @@ void Graph::execute_graph() {
                 multistate->advance(pool->checked_out_tasks);
 
                 pool->set_inactive();
-
-                i++;
             }
+            i++;
         }
 
     }

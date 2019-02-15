@@ -3,6 +3,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <cassert>
 #include "pool.H"
 #include "state.H"
 #include "multistate.H"
