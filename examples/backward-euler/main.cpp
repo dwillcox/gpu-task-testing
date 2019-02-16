@@ -1,7 +1,9 @@
 #include <iostream>
+#include <fstream>
 #include <cassert>
 #include <functional>
 #include <random>
+#include <chrono>
 #include "graph.H"
 #include "state.H"
 
@@ -20,19 +22,19 @@ std::function<int (State*)> create_state_pool_map() {
 int main(int argc, char* argv[]) {
 
     State** state = NULL;
-    int size = 10000;
+    int size = 1000;
 
 #if EXECUTE_HOST_ONLY
     size_t num_host_pools = 4;
-    size_t num_device_pools = 0;    
+    size_t num_device_pools = 0;
 #else
     size_t num_host_pools = 2;
-    size_t num_device_pools = 2;    
+    size_t num_device_pools = 2;
 #endif
 
     cudaError_t cuda_status = cudaSuccess;
     cuda_status = cudaDeviceSynchronize();
-    assert(cuda_status == cudaSuccess);  
+    assert(cuda_status == cudaSuccess);
 
     cuda_status = cudaMallocManaged(&state, sizeof(State*)*size);
     assert(cuda_status == cudaSuccess);
@@ -51,9 +53,10 @@ int main(int argc, char* argv[]) {
     std::uniform_real_distribution<double> uniform1(0.1, 0.3);
     std::uniform_real_distribution<double> uniform2(0.1, 0.3);
     std::default_random_engine re;
-    
+
     for (int i = 0; i < size; i++) {
         state[i] = new State();
+
         // state[i]->ynow[0] = 0.8;
         // state[i]->ynow[1] = 0.1;
         // state[i]->ynow[2] = 0.1;
@@ -68,11 +71,12 @@ int main(int argc, char* argv[]) {
 
     task_graph->execute_graph();
 
-    std::cout << "Finished executing graph" << std::endl;
-    
+    std::cout << "Finished executing graph with walltime: " << task_graph->get_execution_walltime() << " s." << std::endl;
+
+    std::ofstream output_file("be.log", std::ofstream::out);
     for (int i = 0; i < size; i++) {
-        std::cout << "index " << i << std::endl;
-        state[i]->print_state();
+        output_file << "index " << i << std::endl;
+        state[i]->print_state(output_file);
         delete state[i];
     }
 

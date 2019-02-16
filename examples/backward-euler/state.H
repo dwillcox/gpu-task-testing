@@ -1,6 +1,7 @@
 #ifndef STATE_H
 #define STATE_H
 #include <cassert>
+#include <cmath>
 #include "unified_vector.H"
 
 enum IntegratorStatus {step_start,
@@ -60,7 +61,7 @@ public:
     void jac_scale_add_identity();
 
     __host__ __device__
-    void set_matrix_rhs();    
+    void set_matrix_rhs();
 
     __host__ __device__
     void setup_step();
@@ -74,8 +75,10 @@ public:
     __host__ __device__
     void advance();
 
-    void print_state();
+    void print_state(std::ostream&);
 
     void report_error();
+
+    void check_weirdness();
 };
 #endif

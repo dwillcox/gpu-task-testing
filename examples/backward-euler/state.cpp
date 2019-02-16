@@ -44,7 +44,7 @@ void State::jac() {
     #if (VERBOSE_DEBUG && !defined(__CUDA_ARCH__))
     std::cout << "in State::jac" << std::endl;
     print_state();
-    #endif    
+    #endif
 }
 
 __host__ __device__
@@ -56,7 +56,7 @@ void State::jac_scale_add_identity() {
     for (size_t i = 0; i < sparse_jac_nnz; i++) {
         dfdy[i] = dfdy[i] * (-dt);
     }
-    
+
     // the base-1 indexes here are only logical
     size_t location = 0;
     size_t num_in_row;
@@ -103,7 +103,7 @@ void State::post_step() {
     }
 
     if (converged) {
-        // Determine next action if the current step converged        
+        // Determine next action if the current step converged
         if (time >= end_time)
             status = integration_finished;
         else {
@@ -141,22 +141,22 @@ void State::advance() {
     }
 }
 
-void State::print_state() {
-    std::cout << std::scientific;
-    std::cout << "State with status: " << status << std::endl;
-    std::cout << "   - ynow = ";
-    for (size_t i = 0; i < neqs; i++) std::cout << ynow[i] << " ";
-    std::cout << "   - ynext = ";
-    for (size_t i = 0; i < neqs; i++) std::cout << ynext[i] << " ";
-    std::cout << "   - dynext = ";
-    for (size_t i = 0; i < neqs; i++) std::cout << dynext[i] << " ";
-    std::cout << "   - dydt = ";
-    for (size_t i = 0; i < neqs; i++) std::cout << dydt[i] << " ";
-    std::cout << "   - dfdy = ";
-    for (size_t i = 0; i < State::sparse_jac_nnz; i++) std::cout << dfdy[i] << " ";
-    std::cout << "   - bmat = ";
-    for (size_t i = 0; i < neqs; i++) std::cout << bmat[i] << " ";    
-    std::cout << std::endl << std::endl;
+void State::print_state(std::ostream& stream = std::cout) {
+    stream << std::scientific;
+    stream << "State with status: " << status << std::endl;
+    stream << "   - ynow = ";
+    for (size_t i = 0; i < neqs; i++) stream << ynow[i] << " ";
+    stream << "   - ynext = ";
+    for (size_t i = 0; i < neqs; i++) stream << ynext[i] << " ";
+    stream << "   - dynext = ";
+    for (size_t i = 0; i < neqs; i++) stream << dynext[i] << " ";
+    stream << "   - dydt = ";
+    for (size_t i = 0; i < neqs; i++) stream << dydt[i] << " ";
+    stream << "   - dfdy = ";
+    for (size_t i = 0; i < State::sparse_jac_nnz; i++) stream << dfdy[i] << " ";
+    stream << "   - bmat = ";
+    for (size_t i = 0; i < neqs; i++) stream << bmat[i] << " ";
+    stream << std::endl << std::endl;
 }
 
 void State::report_error() {
@@ -165,4 +165,55 @@ void State::report_error() {
     for (size_t i = 0; i < neqs; i++) std::cout << ynow[i] << " ";
     std::cout << std::endl << std::endl;
     status = integration_failed;
+}
+
+void State::check_weirdness() {
+    bool found_nan = false;
+
+    if (!found_nan) for (size_t i = 0; i < neqs; i++) {
+        if (isnan(ynow[i]) || ynow[i] > 10.0) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (!found_nan) for (size_t i = 0; i < neqs; i++) {
+        if (isnan(ynext[i]) || ynext[i] > 10.0) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (!found_nan) for (size_t i = 0; i < neqs; i++) {
+        if (isnan(dynext[i]) || dynext[i] > 10.0) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (!found_nan) for (size_t i = 0; i < neqs; i++) {
+        if (isnan(dydt[i]) || dydt[i] > 1.e100) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (!found_nan) for (size_t i = 0; i < sparse_jac_nnz; i++) {
+        if (isnan(dfdy[i]) || dfdy[i] > 1.e100) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (!found_nan) for (size_t i = 0; i < neqs; i++) {
+        if (isnan(bmat[i]) || bmat[i] > 1.e100) {
+            found_nan = true;
+            break;
+        }
+    }
+
+    if (found_nan) {
+        std::cout << "found NaN!!!" << std::endl;
+        print_state();
+    }
 }
