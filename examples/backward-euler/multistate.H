@@ -15,9 +15,9 @@ class MultiState {
     void*  workspace;
 
     // System
-    int* matrices_csr_col_index_d;    
+    int* matrices_csr_col_index_d;
     int* matrices_csr_row_count_d;
-    int matrices_csr_col_index_h[State::sparse_jac_nnz];    
+    int matrices_csr_col_index_h[State::sparse_jac_nnz];
     int matrices_csr_row_count_h[State::neqs+1];
     double* matrices_csr_values;
     double* system_x;
@@ -27,6 +27,10 @@ public:
 
     ~MultiState();
 
+    void create_linear_solver(size_t);
+
+    void destroy_linear_solver();
+
     void states_to_solver(UnifiedVector<State*>&);
 
     void solver_to_states(UnifiedVector<State*>&);
@@ -34,6 +38,8 @@ public:
     void matrix_solve(UnifiedVector<State*>&);
 
     void report_error(UnifiedVector<State*>&);
+
+    void check_weirdness(UnifiedVector<State*>&);
 
     void advance(UnifiedVector<State*>&);
 };
