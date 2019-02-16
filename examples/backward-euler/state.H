@@ -7,13 +7,14 @@ enum IntegratorStatus {step_start,
                        step_solve,
                        step_update,
                        step_retry,
+                       step_error,
                        integration_failed,
                        integration_finished};
 
 class State : public UnifiedMemoryClass {
 public:
     static const size_t neqs = 3;
-    static const size_t max_convergence_iters = 10;
+    static const size_t max_convergence_iters = 100;
     static const double atol;
 
     // Stopping Criteria
