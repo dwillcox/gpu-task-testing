@@ -237,7 +237,7 @@ void MultiState::advance(UnifiedVector<State*>& batched_states) {
     State* s = batched_states[0];
     if (s->status == step_solve) {
         matrix_solve(batched_states);
-    } else if (s->status == integration_failed) {
+    } else if (s->status == step_error) {
         report_error(batched_states);
     } else {
         for (State* s : batched_states) {

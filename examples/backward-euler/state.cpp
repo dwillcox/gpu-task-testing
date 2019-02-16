@@ -114,8 +114,8 @@ void State::post_step() {
         }
     } else {
         // Determine next action if the current step failed to converge
-        if (num_convergence_iters > max_convergence_iters) {
-            status = integration_failed;
+        if (num_convergence_iters == max_convergence_iters) {
+            status = step_error;
         } else {
             for (size_t i = 0; i < neqs; i++) ynext[i] += dynext[i];
             num_convergence_iters++;
@@ -164,4 +164,5 @@ void State::report_error() {
     std::cout << "   - yn = ";
     for (size_t i = 0; i < neqs; i++) std::cout << ynow[i] << " ";
     std::cout << std::endl << std::endl;
+    status = integration_failed;
 }
