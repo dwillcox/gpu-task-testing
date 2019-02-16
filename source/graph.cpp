@@ -5,6 +5,7 @@
 Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
     multistate = new MultiState(nstates);
 
+    graph_started = false;
     graph_finished = false;
     initialize_task_pools(nhostp, ndevp);
     for (Pool* p : device_task_pools) {
@@ -41,6 +42,21 @@ Graph::~Graph() {
     for (State* t : task_registry) {
         delete t;
     }
+}
+
+void Graph::start_wallclock() {
+    graph_start_time = std::chrono::high_resolution_clock::now();
+}
+
+void Graph::stop_wallclock() {
+    graph_end_time = std::chrono::high_resolution_clock::now();
+}
+
+double Graph::get_execution_walltime() {
+    if (graph_started && graph_finished)
+        return static_cast<double>(std::chrono::duration<double>(graph_end_time-graph_start_time).count());
+    else
+        return 0.0;
 }
 
 void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {
@@ -114,6 +130,11 @@ void Graph::advance(UnifiedVector<State*>& advance_states) {
 }
 
 void Graph::execute_graph() {
+
+    // Set graph started and initial walltime
+    graph_started = true;
+    start_wallclock();
+
     cudaError_t cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
 
@@ -213,4 +234,6 @@ void Graph::execute_graph() {
     // sync device
     cuda_status = cudaDeviceSynchronize();
     assert(cuda_status == cudaSuccess);
+
+    stop_wallclock();
 }

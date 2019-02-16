@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 #include <cassert>
+#include <chrono>
 #include "pool.H"
 #include "state.H"
 #include "multistate.H"
@@ -22,11 +23,19 @@ public:
 
     cudaStream_t* pool_streams;
 
+    bool graph_started;
     bool graph_finished;
+    std::chrono::time_point<std::chrono::high_resolution_clock> graph_start_time, graph_end_time;
   
     Graph(size_t, size_t, size_t);
 
     ~Graph();
+
+    void start_wallclock();
+
+    void stop_wallclock();
+
+    double get_execution_walltime();
 
     void initialize_task_pools(size_t, size_t);
 
