@@ -210,37 +210,17 @@ void MultiState::states_to_solver(UnifiedVector<State*>& batched_states) {
 
     cudaError_t cuda_status = cudaSuccess;
 
-    // int size = batched_states.size();
-    // int numThreads = min(32, size);
-    // int numBlocks = static_cast<int>(ceil(((double) size)/((double) numThreads)));
+    int size = batched_states.size();
+    int numThreads = min(32, size);
+    int numBlocks = static_cast<int>(ceil(((double) size)/((double) numThreads)));
 
-    // states_to_solver_kernel<<<numBlocks, numThreads>>>(matrices_csr_values,
-    //                                                    system_x,
-    //                                                    system_b,
-    //                                                    batched_states);
+    states_to_solver_kernel<<<numBlocks, numThreads>>>(matrices_csr_values,
+                                                       system_x,
+                                                       system_b,
+                                                       batched_states);
 
-    // cuda_status = cudaDeviceSynchronize();
-    // assert(cuda_status == cudaSuccess);
-
-    // load the batched state matrix systems into the solver memory
-    int i = 0;
-    for (State* s : batched_states) {
-        // copy matrix A
-        double* matrix_destination = matrices_csr_values + i * State::sparse_jac_nnz;
-        cuda_status = cudaMemcpy(matrix_destination, &s->dfdy[0],
-                                 sizeof(double) * State::sparse_jac_nnz,
-                                 cudaMemcpyHostToDevice);
-        assert(cuda_status == cudaSuccess);
-
-        // copy vector b
-        double* vector_destination = system_b + i * State::neqs;
-        cuda_status = cudaMemcpy(vector_destination, &s->bmat[0],
-                                 sizeof(double) * State::neqs,
-                                 cudaMemcpyHostToDevice);
-        assert(cuda_status == cudaSuccess);
-
-        i++;
-    }
+    cuda_status = cudaDeviceSynchronize();
+    assert(cuda_status == cudaSuccess);
 }
 
 void MultiState::check_weirdness(UnifiedVector<State*>& batched_states) {
@@ -257,30 +237,17 @@ void MultiState::solver_to_states(UnifiedVector<State*>& batched_states) {
 
     cudaError_t cuda_status = cudaSuccess;
 
-    // int size = batched_states.size();
-    // int numThreads = min(32, size);
-    // int numBlocks = static_cast<int>(ceil(((double) size)/((double) numThreads)));
+    int size = batched_states.size();
+    int numThreads = min(32, size);
+    int numBlocks = static_cast<int>(ceil(((double) size)/((double) numThreads)));
 
-    // solver_to_states_kernel<<<numBlocks, numThreads>>>(matrices_csr_values,
-    //                                                    system_x,
-    //                                                    system_b,
-    //                                                    batched_states);
+    solver_to_states_kernel<<<numBlocks, numThreads>>>(matrices_csr_values,
+                                                       system_x,
+                                                       system_b,
+                                                       batched_states);
 
-    // cuda_status = cudaDeviceSynchronize();
-    // assert(cuda_status == cudaSuccess);
-
-    // copy the solutions into the batched states
-    int i = 0;
-    for (State* s : batched_states) {
-        // copy solution x
-        double* vector_source = system_x + i * State::neqs;
-        cuda_status = cudaMemcpy(&s->dynext[0], vector_source,
-                                 sizeof(double) * State::neqs,
-                                 cudaMemcpyDeviceToHost);
-        assert(cuda_status == cudaSuccess);
-
-        i++;
-    }
+    cuda_status = cudaDeviceSynchronize();
+    assert(cuda_status == cudaSuccess);
 }
 
 
