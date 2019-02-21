@@ -73,12 +73,15 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Finished executing graph with walltime: " << task_graph->get_execution_walltime() << " s." << std::endl;
 
+    task_graph->write_statistics();
+
     std::ofstream output_file("be.log", std::ofstream::out);
     for (int i = 0; i < size; i++) {
         output_file << "index " << i << std::endl;
         state[i]->print_state(output_file);
         delete state[i];
     }
+    output_file.close();
 
     cuda_status = cudaFree(state);
     assert(cuda_status == cudaSuccess);

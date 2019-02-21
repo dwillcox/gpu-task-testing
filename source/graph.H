@@ -37,6 +37,8 @@ public:
 
     double get_execution_walltime();
 
+    void write_statistics();
+
     void initialize_task_pools(size_t, size_t);
 
     void set_state_pool_map_function(std::function<int (State*)>);

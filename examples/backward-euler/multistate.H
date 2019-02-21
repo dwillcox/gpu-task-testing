@@ -1,5 +1,7 @@
 #ifndef MULTISTATE_H
 #define MULTISTATE_H
+#include <vector>
+#include <fstream>
 #include <cusolverSp.h>
 #include <cusparse.h>
 #include "state.H"
@@ -22,10 +24,15 @@ class MultiState {
     double* matrices_csr_values;
     double* system_x;
     double* system_b;
+
+    // Solver call statistics
+    std::vector<int> num_linear_systems;
 public:
     MultiState(size_t max_states);
 
     ~MultiState();
+
+    void write_statistics();
 
     void create_linear_solver(size_t);
 

@@ -21,7 +21,7 @@ Graph::Graph(size_t nstates, size_t nhostp, size_t ndevp) {
 }
 
 Graph::~Graph() {
-    delete multistate;
+    delete[] multistate;
 
     cudaError_t cuda_status = cudaSuccess;
     for (Pool* p : device_task_pools) {
@@ -57,6 +57,10 @@ double Graph::get_execution_walltime() {
         return static_cast<double>(std::chrono::duration<double>(graph_end_time-graph_start_time).count());
     else
         return 0.0;
+}
+
+void Graph::write_statistics() {
+    multistate->write_statistics();
 }
 
 void Graph::initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {

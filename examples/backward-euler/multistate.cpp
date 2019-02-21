@@ -43,8 +43,6 @@ void solver_to_states_kernel(double* matrices_csr_values,
 
 
 MultiState::MultiState(size_t max_states) {
-    std::cout << "constructing multistate!" << std::endl;
-
     // initialize batched matrix memory
     cudaError_t cuda_status = cudaSuccess;
 
@@ -184,7 +182,7 @@ void MultiState::destroy_linear_solver() {
     assert(cuda_status == cudaSuccess);
 }
 
-MultiState::~MultiState() {
+MultiState::~MultiState() {    
     // free batched matrix memory
     cudaError_t cuda_status = cudaSuccess;
 
@@ -203,6 +201,15 @@ MultiState::~MultiState() {
 
     cuda_status = cudaFree(matrices_csr_row_count_d);
     assert(cuda_status == cudaSuccess);
+}
+
+void MultiState::write_statistics() {
+    // write out the linear system stats
+    std::ofstream solver_file("solver.log", std::ofstream::out);
+    for (auto n : num_linear_systems) {
+        solver_file << n << std::endl;
+    }
+    solver_file.close();
 }
 
 void MultiState::states_to_solver(UnifiedVector<State*>& batched_states) {
@@ -254,7 +261,11 @@ void MultiState::solver_to_states(UnifiedVector<State*>& batched_states) {
 void MultiState::matrix_solve(UnifiedVector<State*>& batched_states) {
     cusolverStatus_t cusolver_status = CUSOLVER_STATUS_SUCCESS;
 
-    create_linear_solver(static_cast<int>(batched_states.size()));
+    int batch_size = static_cast<int>(batched_states.size());
+    
+    create_linear_solver(batch_size);
+
+    num_linear_systems.push_back(batch_size);
 
     // load the batched state systems into the solver memory
     states_to_solver(batched_states);
@@ -270,7 +281,7 @@ void MultiState::matrix_solve(UnifiedVector<State*>& batched_states) {
                                                 matrices_csr_col_index_d,
                                                 system_b,
                                                 system_x,
-                                                static_cast<int>(batched_states.size()),
+                                                batch_size,
                                                 info,
                                                 workspace);
     cudaError_t cuda_status = cudaDeviceSynchronize();
