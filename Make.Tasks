@@ -1,6 +1,7 @@
 AMREX_HOME ?= /path/to/amrex
 GPU_TASKS_HOME ?= /path/to/tasks
 
+COMPILE_CVODE ?= FALSE
 LINK_CUSOLVER ?= FALSE
 USE_HOST_ONLY ?= FALSE
 USE_VERBOSE_DEBUG ?= FALSE
@@ -49,6 +50,10 @@ all: $(executable)
 #------------------------------------------------------------------------------
 
 Bdirs := source
+
+ifeq ($(COMPILE_CVODE), TRUE)
+  Bdirs += examples/cvode/cvode_source
+endif
 
 Bpack += $(foreach dir, $(Bdirs), $(TOP)/$(dir)/Make.package)
 Blocs += $(foreach dir, $(Bdirs), $(TOP)/$(dir))
