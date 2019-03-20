@@ -1,8 +1,0 @@
-CEXE_sources += cvode.cpp
-CEXE_sources += cvode_diag.cpp
-CEXE_sources += cvode_direct.cpp
-CEXE_sources += cvode_io.cpp
-CEXE_sources += cvode_nls.cpp
-CEXE_sources += cvode_spils.cpp
-CEXE_sources += nvector_serial.cpp
-
