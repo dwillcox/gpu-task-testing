@@ -41,8 +41,13 @@ public:
         return *(data_ptr + i);
     }
 
+    __host__ __device__
     UnifiedVector<T>& operator=(UnifiedVector<T>& other) {
+#ifdef __CUDA_ARCH__
+        assert(other.filled_size <= this->allocated_size);
+#else
         if (other.filled_size > this->allocated_size) resize(other.filled_size);
+#endif
         for (int i = 0; i < other.filled_size; i++) {
             *(data_ptr + i) = other[i];
         }
