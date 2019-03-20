@@ -5,6 +5,7 @@ COMPILE_CVODE ?= FALSE
 LINK_CUSOLVER ?= FALSE
 USE_HOST_ONLY ?= FALSE
 USE_VERBOSE_DEBUG ?= FALSE
+USE_TASKS ?= TRUE
 
 # default is to compile with CUDA
 USE_CUDA ?= TRUE
@@ -49,7 +50,9 @@ all: $(executable)
 # Directories
 #------------------------------------------------------------------------------
 
-Bdirs := source
+ifeq ($(USE_TASKS), TRUE)
+  Bdirs := source
+endif
 
 ifeq ($(COMPILE_CVODE), TRUE)
   Bdirs += examples/cvode/cvode_source
