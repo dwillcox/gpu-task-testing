@@ -6,49 +6,164 @@
 #include <cassert>
 #include <chrono>
 #include "pool.H"
-#include "state.H"
-#include "multistate.H"
 #include "unified.H"
 #include "unified_vector.H"
 
+#define VERBOSE_DEBUG 0
 
-class Graph : public UnifiedMemoryClass {
+template<class MultiStateClass, class StateClass> class Graph : public UnifiedMemoryClass {
 public:
-    UnifiedVector<Pool*> device_task_pools;
-    UnifiedVector<Pool*> host_task_pools;  
-    UnifiedVector<State*> task_registry;
-    std::function<int (State*)> map_state_to_pool;
-    std::function<bool (State*)> check_state_completed;
-    MultiState* multistate;
-
-    cudaStream_t* pool_streams;
+    UnifiedVector<Pool<MultiStateClass, StateClass>*> task_pools;
+    UnifiedVector<StateClass*> task_registry;
+    std::function<int (StateClass*)> map_state_to_pool;
+    std::function<bool (StateClass*)> check_state_completed;
 
     bool graph_started;
     bool graph_finished;
     std::chrono::time_point<std::chrono::high_resolution_clock> graph_start_time, graph_end_time;
   
-    Graph(size_t, size_t, size_t);
+    Graph(size_t nstates, size_t nhostp, size_t ndevp) {
+        graph_started = false;
+        graph_finished = false;
 
-    ~Graph();
+        initialize_task_pools(nhostp, ndevp);
 
-    void start_wallclock();
+        for (Pool<MultiStateClass, StateClass>* p : task_pools) {
+            p->tasks.resize(nstates);
+        }
 
-    void stop_wallclock();
+        task_registry.resize(nstates);
 
-    double get_execution_walltime();
+        std::cout << "initialized task pools" << std::endl;
+    }
 
-    void initialize_task_pools(size_t, size_t);
+    ~Graph() {
+        for (Pool<MultiStateClass, StateClass>* p : task_pools) {
+            delete p;
+        }
 
-    void set_state_pool_map_function(std::function<int (State*)>);
+        for (StateClass* t : task_registry) {
+            delete t;
+        }
+    }
 
-    void set_state_completed_function(std::function<bool (State*)>);
+    void start_wallclock() {
+        graph_start_time = std::chrono::high_resolution_clock::now();
+    }
 
-    void queue(State*);
+    void stop_wallclock() {
+        graph_end_time = std::chrono::high_resolution_clock::now();
+    }
 
-    bool completed();
+    double get_execution_walltime() {
+        if (graph_started && graph_finished)
+            return static_cast<double>(std::chrono::duration<double>(graph_end_time-graph_start_time).count());
+        else
+            return 0.0;
+    }
+
+    void initialize_task_pools(size_t num_host_pools, size_t num_device_pools) {
+        Pool<MultiStateClass, StateClass>* p;
+        int ipool = 0;
+
+        for (int i = 0; i < num_host_pools; i++) {
+            p = new Pool<MultiStateClass, StateClass>(ipool);
+            p->set_host_pool();
+            task_pools.push_back(p);
+            ipool++;
+        }
+
+        for (int i = 0; i < num_device_pools; i++) {
+            p = new Pool<MultiStateClass, StateClass>(ipool);
+            p->set_device_pool();
+            task_pools.push_back(p);
+            ipool++;
+        }
+    }
+
+    void set_state_pool_map_function(std::function<int (StateClass*)> map) {
+        map_state_to_pool = map;
+    }
+
+    void set_state_completed_function(std::function<bool (StateClass*)> check) {
+        check_state_completed = check;
+    }
+
+    void queue(StateClass* state) {
+        task_registry.push_back(state);
+    }
+
+    bool completed() {
+        bool tasks_unfinished = false;
+        for (StateClass* state : task_registry) {
+            if (!check_state_completed(state)) {
+                tasks_unfinished = true;
+                break;
+            }
+        }
+        graph_finished = !tasks_unfinished;
+        return graph_finished;
+    }
     
-    void advance(UnifiedVector<State*>&);
+    void advance(UnifiedVector<StateClass*>& advance_states) {
+#if VERBOSE_DEBUG
+        std::cout << "in advance ..." << std::endl;
+#endif
 
-    void execute_graph();
+        for (Pool<MultiStateClass, StateClass>* p : task_pools) {
+            p->checkin(advance_states, map_state_to_pool);
+        }
+
+#if VERBOSE_DEBUG
+        std::cout << "leaving advance ..." << std::endl;
+#endif
+    }
+
+    void advance(std::vector<MultiStateClass*>& advance_multistates) {
+#if VERBOSE_DEBUG
+        std::cout << "in advance ..." << std::endl;
+#endif
+
+        for (Pool<MultiStateClass, StateClass>* p : task_pools) {
+            p->checkin(advance_multistates, map_state_to_pool);
+        }
+
+#if VERBOSE_DEBUG
+        std::cout << "leaving advance ..." << std::endl;
+#endif
+    }
+
+    void execute_graph() {
+        // Set graph started and initial walltime
+        graph_started = true;
+        start_wallclock();
+
+        cudaError_t cuda_status = cudaDeviceSynchronize();
+        assert(cuda_status == cudaSuccess);
+
+        // Initialize task pools with queued tasks in the registry
+        std::cout << "initializing task pools..." << std::endl;
+        advance(task_registry);
+
+        // Loop over pools until all tasks are finished
+        std::cout << "starting graph execution..." << std::endl;
+        while (!completed()) {
+            // advance any finished multistates
+            for (Pool<MultiStateClass, StateClass>* pool : task_pools) {
+                advance(pool->extract_finished());
+            }
+
+            // launch multistates from pools for any queued tasks
+            for (Pool<MultiStateClass, StateClass>* pool : task_pools) {
+                pool->execute_queued();
+            }
+        }
+
+        // sync device
+        cuda_status = cudaDeviceSynchronize();
+        assert(cuda_status == cudaSuccess);
+
+        stop_wallclock();
+    }
 };
 #endif

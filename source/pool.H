@@ -9,8 +9,7 @@
 #include "unified_vector.H"
 #include "unified.H"
 
-// As a first pass, let's use Pool-wide locking
-template<class MultiStateClass, class StateClass> class Pool : public UnifiedMemoryClass, public StreamContainer {
+template<class MultiStateClass, class StateClass> class Pool : public UnifiedMemoryClass {
 public:
   std::mutex pool_mutex;
   UnifiedVector<StateClass*> tasks;
@@ -55,6 +54,21 @@ public:
     return multistates.size();
   }
 
+    std::vector<MultiStateClass*> extract_finished() {
+        std::vector<MultiStateClass*> unfinished_multistates;
+        std::vector<MultiStateClass*> finished_multistates;
+
+        for (auto& ms : multistates) {
+            if (ms->is_finished())
+                finished_multistates.push_back(ms);
+            else
+                unfinished_multistates.push_back(ms);
+        }
+
+        multistates = unfinished_multistates;
+        return finished_multistates;
+    }
+
   void checkin(UnifiedVector<StateClass*>& checkin_states, std::function<int (StateClass*)> pool_map) {
     std::unique_lock<std::mutex> pool_lock(pool_mutex);
     for (StateClass* s : checkin_states) {
@@ -64,22 +78,35 @@ public:
     }
   }
 
-  void checkout() {
-    std::unique_lock<std::mutex> pool_lock(pool_mutex);
+    void checkin(std::vector<MultiStateClass*>& checkin_multistates, std::function<int (StateClass*)> pool_map) {
+        std::unique_lock<std::mutex> pool_lock(pool_mutex);
+        for (MultiStateClass* ms : checkin_multistates) {
+            for (StateClass* s : *ms) {
+                if (pool_map(s) == pool_graph_index) {
+                    tasks.push_back(s);
+                }
+            }
+        }
+    }
 
-    ExecutionTarget target = is_device_pool() ? ExecutionTarget::ExecuteDevice : ExecutionTarget::ExecuteHost;
+    void execute_queued() {
+        std::unique_lock<std::mutex> pool_lock(pool_mutex);
 
-    MultiStateClass* ms = new MultiStateClass(tasks, target);
-    multistates.push_back(ms);
+        if (ready()) {
+            ExecutionTarget target = is_device_pool() ? ExecutionTarget::ExecuteDevice : ExecutionTarget::ExecuteHost;
 
-    tasks.resize(0);
-  }
+            MultiStateClass* ms = new MultiStateClass(tasks, target);
+            multistates.push_back(ms);
+
+            tasks.resize(0);
+
+            ms->execute();
+        }
+    }
 
   void reset_tasks() {
     std::unique_lock<std::mutex> pool_lock(pool_mutex);
     tasks.resize(0);
   }
 };
-
-__global__ void pool_kernel(Pool*);
 #endif

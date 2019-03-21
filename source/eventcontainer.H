@@ -17,5 +17,9 @@ public:
         event_status = cudaEventQuery(event);
         return (event_status == cudaSuccess);
     }
+
+    void stream_insert_event(cudaStream_t& stream) {
+        cudaEventRecord(event, stream);
+    }
 };
 #endif

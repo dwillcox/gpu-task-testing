@@ -4,10 +4,20 @@
 #include <cuda_runtime.h>
 
 class StreamContainer {
-    cudaStream_t* stream_ptr;
+    cudaStream_t* stream;
 public:
-    __host__ __device__ void set_stream(cudaStream_t*);
+    StreamContainer() {
+        cudaError_t cuda_status = cudaStreamCreate(stream);
+        assert(cuda_status == cudaSuccess);
+    }
 
-    __host__ __device__ cudaStream_t& get_stream();
+    ~StreamContainer() {
+        cudaError_t cuda_status = cudaStreamDestroy(*stream);
+        assert(cuda_status == cudaSuccess);
+    }
+
+    cudaStream_t& get_stream() {
+        return *stream;
+    }
 };
 #endif

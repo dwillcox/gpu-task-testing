@@ -68,6 +68,14 @@ public:
         advance();
     }
 
+    void device_advance_threads() {
+        int numThreads = min(32, static_cast<int>(size()));
+        int numBlocks = static_cast<int>(ceil(static_cast<double>(size())/static_cast<double>(numThreads)));
+        // launch kernel
+        multistate_kernel<<<numBlocks, numThreads, 0, get_stream()>>>(this);
+        stream_insert_event(get_stream());
+    }
+
     virtual void advance() {}
 };
 
