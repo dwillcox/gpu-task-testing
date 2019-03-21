@@ -5,27 +5,23 @@
 #include <iostream>
 #include <functional>
 #include <mutex>
+#include <vector>
 #include "unified_vector.H"
-#include "state.H"
 #include "unified.H"
-#include "streamcontainer.H"
 
 // As a first pass, let's use Pool-wide locking
-class Pool : public UnifiedMemoryClass, public StreamContainer {
+template<class MultiStateClass, class StateClass> class Pool : public UnifiedMemoryClass, public StreamContainer {
 public:
   std::mutex pool_mutex;
-  UnifiedVector<State*> tasks;
-  UnifiedVector<State*> checked_out_tasks;
+  UnifiedVector<StateClass*> tasks;
+  std::vector<MultiStateClass*> multistates;
+
   int pool_graph_index;
   bool _is_device_pool;
-  bool kernel_running;
-  cudaEvent_t kernel_finished;
 
   Pool(int index) {
     pool_graph_index = index;
     _is_device_pool = false;
-    kernel_running = false;
-    cudaEventCreate(&kernel_finished);
   }
 
   ~Pool() {
@@ -48,27 +44,7 @@ public:
   }
 
   bool ready() {
-    return !kernel_running && (size_queued() > 0);
-  }
-
-    bool finished() {
-        if (is_device_pool()) {
-            if (kernel_running) {
-                cudaError_t cuda_status = cudaEventQuery(kernel_finished);
-                if (cuda_status == cudaSuccess) {
-                    set_inactive();
-                }
-            }
-        }
-        return !kernel_running && (size_checked_out() > 0);
-    }
-
-  void set_active() {
-    kernel_running = true;
-  }
-
-  void set_inactive() {
-    kernel_running = false;
+      return (size_queued() > 0);
   }
 
   size_t size_queued() {
@@ -76,12 +52,12 @@ public:
   }
 
   size_t size_checked_out() {
-    return checked_out_tasks.size();
+    return multistates.size();
   }
 
-  void checkin(UnifiedVector<State*>& checkin_states, std::function<int (State*)> pool_map) {
+  void checkin(UnifiedVector<StateClass*>& checkin_states, std::function<int (StateClass*)> pool_map) {
     std::unique_lock<std::mutex> pool_lock(pool_mutex);
-    for (State* s : checkin_states) {
+    for (StateClass* s : checkin_states) {
         if (pool_map(s) == pool_graph_index) {
             tasks.push_back(s);
         }
@@ -90,19 +66,18 @@ public:
 
   void checkout() {
     std::unique_lock<std::mutex> pool_lock(pool_mutex);
-    assert(checked_out_tasks.size() == 0);
-    checked_out_tasks = tasks;
+
+    ExecutionTarget target = is_device_pool() ? ExecutionTarget::ExecuteDevice : ExecutionTarget::ExecuteHost;
+
+    MultiStateClass* ms = new MultiStateClass(tasks, target);
+    multistates.push_back(ms);
+
     tasks.resize(0);
   }
 
   void reset_tasks() {
     std::unique_lock<std::mutex> pool_lock(pool_mutex);
     tasks.resize(0);
-  }
-
-  void reset_checked_out_tasks() {
-    std::unique_lock<std::mutex> pool_lock(pool_mutex);
-    checked_out_tasks.resize(0);
   }
 };
 

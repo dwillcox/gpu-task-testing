@@ -1,7 +1,6 @@
 # sources for task management
 
 CEXE_sources += graph.cpp
-CEXE_sources += pool.cpp
 CEXE_sources += state.cpp
 CEXE_sources += multistate.cpp
 CEXE_sources += streamcontainer.cpp

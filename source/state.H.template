@@ -6,9 +6,7 @@ class State : public UnifiedMemoryClass {
 public:
   State() {}
 
-  __device__
-      void advance();
-
-  static void batched_advance(UnifiedVector<State*>&);
+  __host__  __device__
+  void advance();
 };
 #endif

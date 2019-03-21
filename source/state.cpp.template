@@ -1,6 +1,4 @@
 #include "state.H"
 
-__device__
+__host__ __device__
 void State::advance() {}
-
-void State::batched_advance(UnifiedVector<State*>& batched_states) {}
