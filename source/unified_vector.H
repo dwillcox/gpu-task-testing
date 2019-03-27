@@ -13,10 +13,9 @@ public:
     size_t allocated_size;
     T* data_ptr;
 
-    UnifiedVector(size_t create_size = 0) {
-        cudaError_t cuda_status = cudaSuccess;
-        cudaMallocManaged(&data_ptr, sizeof(T)*create_size);
-        cuda_status = cudaDeviceSynchronize();
+    UnifiedVector(size_t create_size = 1) {
+        cudaError_t cuda_status;
+        cuda_status = cudaMallocManaged(&data_ptr, sizeof(T)*create_size);
         assert(cuda_status == cudaSuccess);
         allocated_size = create_size;
         filled_size = 0;
@@ -26,6 +25,10 @@ public:
         cudaError_t cuda_status = cudaFree(data_ptr);
         allocated_size = 0;
         assert(cuda_status == cudaSuccess);
+    }
+
+    __host__ __device__ T* dataPtr() {
+        return begin();
     }
 
     __host__ __device__ T* begin() {
@@ -41,8 +44,13 @@ public:
         return *(data_ptr + i);
     }
 
+    __host__ __device__
     UnifiedVector<T>& operator=(UnifiedVector<T>& other) {
+#ifdef __CUDA_ARCH__
+        assert(other.filled_size <= this->allocated_size);
+#else
         if (other.filled_size > this->allocated_size) resize(other.filled_size);
+#endif
         for (int i = 0; i < other.filled_size; i++) {
             *(data_ptr + i) = other[i];
         }
@@ -64,7 +72,7 @@ public:
         if (new_size == 0) filled_size = 0;
         else {
             T* new_data_ptr;
-            cudaError_t cuda_status = cudaSuccess;
+            cudaError_t cuda_status;
 
             cuda_status = cudaMallocManaged(&new_data_ptr, sizeof(T)*new_size);
             assert(cuda_status == cudaSuccess);
